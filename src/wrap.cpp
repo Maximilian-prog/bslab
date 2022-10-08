@@ -13,7 +13,7 @@
 #include "wrap.h"
 #include "myfs.h"
 #include "myinmemoryfs.h"
-#include "myondiskfs.h"
+#include "myondiskfs.h"~
 
 void setInstance(int onDisk) {
     if(onDisk) {
