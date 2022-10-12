@@ -41,10 +41,26 @@
 /// @brief Constructor of the in-memory file system class.
 ///
 /// You may add your own constructor code here.
+
+// DatenStruktur
+struct MyFsFileInfo{
+    char name[NAME_LENGTH];
+    size_t size;
+    int uid;
+    int gid;
+    char mode[9]; //Permissions  rwx rwx rwx (user group other)
+    time_t atime; //Zeitpunkt letzer zugriffe
+    time_t mtime; //letzte Veränderungen
+    time_t ctime; //letzte Statusänderung
+    char* data;   //Daten der Datei
+};
+
+MyFsFileInfo* fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
+
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
-
+         fileArray = new MyFsFileInfo[NUM_DIR_ENTRIES];
 }
 
 /// @brief Destructor of the in-memory file system class.
