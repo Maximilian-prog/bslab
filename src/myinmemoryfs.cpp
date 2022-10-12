@@ -55,7 +55,7 @@ struct MyFsFileInfo{
     char* data;   //Daten der Datei
 };
 
-MyFsFileInfo* fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
+MyFsFileInfo* fileArray; //Array von den Dateien des MyFs
 
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
