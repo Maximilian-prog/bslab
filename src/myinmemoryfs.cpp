@@ -55,12 +55,12 @@ struct MyFsFileInfo{
     char* data;   //Daten der Datei
 };
 
-MyFsFileInfo* fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
+MyFsFileInfo* fileArray; //Zeiger auf Array von den Dateien des MyFs anlegen
 
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
-         fileArray = new MyFsFileInfo[NUM_DIR_ENTRIES];
+         fileArray = new MyFsFileInfo[NUM_DIR_ENTRIES]; //Initialisieren eines Arrays
 }
 
 /// @brief Destructor of the in-memory file system class.
