@@ -17,7 +17,7 @@ add_executable(mount.myfs src/blockdevice.cpp
         src/myinmemoryfs.cpp
         src/myondiskfs.cpp
         src/wrap.cpp
-        src/mount.myfs.c)
+        src/mount.myfs.c src/test.h)
 
 add_executable(unittests src/blockdevice.cpp
         src/myfs.cpp

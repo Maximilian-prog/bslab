@@ -32,11 +32,16 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-
+#include <iostream>
+#include <cstring>
+#include <string>
+#include <time.h>
 #include "macros.h"
 #include "myfs.h"
 #include "myfs-info.h"
 #include "blockdevice.h"
+
+using namespace std;
 
 /// @brief Constructor of the in-memory file system class.
 ///
@@ -46,10 +51,10 @@
 struct MyFsFileInfo{
     char name[NAME_LENGTH];
     size_t size;
-    int uid;
-    int gid;
-    char mode[9]; //Permissions  rwx rwx rwx (user group other)
-    time_t atime; //Zeitpunkt letzer zugriffe
+    uid_t uid;
+    uid_t gid;
+    mode_t  mode;//Permissions  rwx rwx rwx (user group other)
+    time_t atime; //Zeitpunkt letzter Zugriffe
     time_t mtime; //letzte Veränderungen
     time_t ctime; //letzte Statusänderung
     char* data;   //Daten der Datei
@@ -84,6 +89,21 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
 
     // TODO: [PART 1] Implement this!
+
+
+    MyFsFileInfo newFile;
+    strcpy(newFile.name, path+1); //Dateiname
+    newFile.size=SIZE;
+    newFile.uid = geteuid();
+    newFile.gid = getgid();
+    newFile.mode = mode;
+    newFile.atime = time(&timer);
+    newFile.mtime=time(&timer);
+    newFile.ctime=time(&timer);
+    newFile.data = (char*) malloc(SIZE);
+
+    //Todo: filearray befüllen mit newfile mit sizeof und typecheck
+
 
     RETURN(0);
 }
