@@ -87,6 +87,8 @@ MyInMemoryFS::~MyInMemoryFS() {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
+    const int SIZE = 1024;
+    time_t timer;
 
     // TODO: [PART 1] Implement this!
 
