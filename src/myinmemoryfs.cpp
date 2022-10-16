@@ -110,6 +110,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
         if(typeid(*pointer) != typeid(MyFsFileInfo))
         {
             fileArray[i]=newFile;
+            break;
         }
     }
 
@@ -125,7 +126,17 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 int MyInMemoryFS::fuseUnlink(const char *path) {
     LOGM();
 
-    // TODO: [PART 1] Implement this!
+    char* fname;
+    strcpy(fname, path+1); //Dateinam
+
+    MyFsFileInfo* pointer = fileArray;
+    for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
+    {
+        if(strcmp(fname,path)==0)  //fname == path
+        {
+            free(pointer);
+        }
+    }
 
     RETURN(0);
 }
