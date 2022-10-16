@@ -104,8 +104,14 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     newFile.ctime=time(&timer);
     newFile.data = (char*) malloc(SIZE);
 
-    //Todo: filearray befüllen mit newfile mit sizeof und typecheck
-
+    MyFsFileInfo* pointer = fileArray;
+    for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
+    {
+        if(typeid(*pointer) != typeid(MyFsFileInfo))
+        {
+            fileArray[i]=newFile;
+        }
+    }
 
     RETURN(0);
 }
