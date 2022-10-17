@@ -60,12 +60,11 @@ struct MyFsFileInfo{
     char* data;   //Daten der Datei
 };
 
-MyFsFileInfo* fileArray; //Array von den Dateien des MyFs
+MyFsFileInfo fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
 
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
-         fileArray = new MyFsFileInfo[NUM_DIR_ENTRIES];
 }
 
 /// @brief Destructor of the in-memory file system class.
@@ -102,7 +101,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     newFile.atime = time(&timer);
     newFile.mtime=time(&timer);
     newFile.ctime=time(&timer);
-    newFile.data = (char*) malloc(SIZE);
+    newFile.data;
 
     MyFsFileInfo* pointer = fileArray;
     for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
@@ -110,6 +109,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
         if(typeid(*pointer) != typeid(MyFsFileInfo))
         {
             fileArray[i]=newFile;
+            fileArray[i].data=(char*) malloc(SIZE);
             break;
         }
     }
@@ -127,14 +127,23 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
     LOGM();
 
     char* fname;
-    strcpy(fname, path+1); //Dateinam
+    strcpy(fname, path+1); //Dateiname
 
     MyFsFileInfo* pointer = fileArray;
     for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
     {
         if(strcmp(fname,path)==0)  //fname == path
         {
-            free(pointer);
+            free(fileArray[i].data);
+            fileArray[i].size=0;
+            strcpy(fileArray[i].name, ""); //Dateiname
+            fileArray[i].uid =NULL;
+            fileArray[i].gid = NULL;
+            fileArray[i].mode = NULL;
+            fileArray[i].atime = NULL;
+            fileArray[i].mtime=NULL;
+            fileArray[i].ctime=NULL;
+            break;
         }
     }
 
