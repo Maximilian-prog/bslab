@@ -66,13 +66,6 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
 
-    //Testdatei in Array einfügen
-    //TODO: Fehler beheben mit . directory in fuseReaddir
-/*    MyFsFileInfo testFile;
-    strcpy(testFile.name,"Hi");
-    fileArray[0]=testFile;
-    LOGF("Testfile:  ", fileArray[0].name[0]);
-*/
  }
 
 /// @brief Destructor of the in-memory file system class.
@@ -406,20 +399,24 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
 
     LOGF( "--> Getting The List of Files of %s\n", path );
 
+    MyFsFileInfo testFile;
+    strcpy(testFile.name,"Hi");
+    fileArray[0]=testFile;
+    LOGF("%s\n", fileArray[0].name );
+
     filler( buf, ".", NULL, 0 ); // Current Directory
     filler( buf, "..", NULL, 0 ); // Parent Directory
 
     if ( strcmp( path, "/" ) == 0 ) // If the user is trying to show the files/directories of the root directory show the following
     {
-
         MyFsFileInfo* pointer = fileArray;
         for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
         {
+            //TODO: Fehler if, geht trotzdem rein obwohl kein file ist!!!
             if(typeid(*pointer) == typeid(MyFsFileInfo))
             {
-                char* name;
-                strcpy(name, fileArray[i].name);
-                filler(buf, name,NULL, 0);
+                LOGF("%s", "Ja if");
+                filler(buf,"test",NULL, 0);
             }
         }
 
