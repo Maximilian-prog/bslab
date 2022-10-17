@@ -65,6 +65,12 @@ MyFsFileInfo fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
+
+    //Testdatei in Array einfügen
+    MyFsFileInfo testFile;
+    strcpy(testFile.name,"Hi");
+    fileArray[0]=testFile;
+    cout << fileArray[0].name[0];
 }
 
 /// @brief Destructor of the in-memory file system class.
@@ -402,7 +408,9 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     filler( buf, "..", NULL, 0 ); // Parent Directory
 
     if ( strcmp( path, "/" ) == 0 ) // If the user is trying to show the files/directories of the root directory show the following
-    {    MyFsFileInfo* pointer = fileArray;
+    {
+/*
+        MyFsFileInfo* pointer = fileArray;
         for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
         {
             if(typeid(*pointer) == typeid(MyFsFileInfo))
@@ -412,7 +420,7 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
                 filler(buf, name,NULL, 0);
             }
         }
-
+*/
         filler( buf, "file54", NULL, 0 );
         filler( buf, "file349", NULL, 0 );
     }
