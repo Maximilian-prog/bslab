@@ -405,7 +405,7 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     {    MyFsFileInfo* pointer = fileArray;
         for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
         {
-            if(typeid(*pointer) != typeid(MyFsFileInfo))
+            if(typeid(*pointer) == typeid(MyFsFileInfo))
             {
                 char* name;
                 strcpy(name, fileArray[i].name);
