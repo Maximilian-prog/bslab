@@ -68,7 +68,7 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
     MyFsFileInfo* pointer = fileArray;
     for(int i=0;i<NUM_DIR_ENTRIES;i++,pointer++)
     {
-        pointer = nullptr;
+        pointer= nullptr;
         LOG("NullPtr gesetzt");
     }
 
@@ -421,7 +421,6 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
             //TODO: Fehler if, geht trotzdem rein obwohl kein file ist!!!
             if(pointer != nullptr)
             {
-                LOGF("%s", "Ja if");
                 filler(buf,"test",NULL, 0);
             }
         }
