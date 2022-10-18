@@ -65,6 +65,12 @@ MyFsFileInfo fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
+    MyFsFileInfo* pointer = fileArray;
+    for(int i=0;i<NUM_DIR_ENTRIES;i++,pointer++)
+    {
+        pointer = nullptr;
+        LOG("NullPtr gesetzt");
+    }
 
  }
 
@@ -107,7 +113,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     MyFsFileInfo* pointer = fileArray;
     for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
     {
-        if(typeid(*pointer) != typeid(MyFsFileInfo))
+        if(pointer== nullptr)
         {
             fileArray[i]=newFile;
             fileArray[i].data=(char*) malloc(SIZE);
@@ -413,7 +419,7 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
         for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
         {
             //TODO: Fehler if, geht trotzdem rein obwohl kein file ist!!!
-            if(typeid(*pointer) == typeid(MyFsFileInfo))
+            if(pointer != nullptr)
             {
                 LOGF("%s", "Ja if");
                 filler(buf,"test",NULL, 0);
