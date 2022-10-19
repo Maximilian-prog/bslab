@@ -143,13 +143,13 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
             free(fileArray[i].data);
             fileArray[i].size = 0;
             strcpy(fileArray[i].name, ""); //Dateiname
-            fileArray[i].uid =NULL;
+             fileArray[i].uid = NULL;
             fileArray[i].gid = NULL;
             fileArray[i].mode = NULL;
             fileArray[i].atime = NULL;
-            fileArray[i].mtime=NULL;
-            fileArray[i].ctime=NULL;
-            corArray[i]=-1;
+            fileArray[i].mtime = NULL;
+            fileArray[i].ctime = NULL;
+            corArray[i] = -1;
             break;
         }
     }
