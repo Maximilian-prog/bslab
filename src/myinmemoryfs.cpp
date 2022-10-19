@@ -107,7 +107,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     newFile.atime = time(&timer);
     newFile.mtime=time(&timer);
     newFile.ctime=time(&timer);
-    newFile.data;
+    //newFile.data;
 
 
     for(int i = 0; i < NUM_DIR_ENTRIES; i++)
