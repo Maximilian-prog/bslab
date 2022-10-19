@@ -212,26 +212,25 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
     if ( strcmp( path, "/" ) == 0 ) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
+    }else{
         //Unser Code
-/*        for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        ret = -ENOENT;
+        for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
             if (corArray[i] == 0) {
-                statbuf->st_mode = S_IFREG | 0644;
-                statbuf->st_nlink = 1;
-                statbuf->st_size = fileArray[i].size;
+                if(strcmp( path + 1, fileArray[i].name) == 0) {
+                    statbuf->st_mode = S_IFREG | 0644;
+                    statbuf->st_nlink = 1;
+                    statbuf->st_size = fileArray[i].size;
+                    ret = 0;
+                }
             }
         }
-  */  }
-    else if ( strcmp( path, "/file54" ) == 0 || ( strcmp( path, "/file349" ) == 0 ) )
-    {
-        statbuf->st_mode = S_IFREG | 0644;
-        statbuf->st_nlink = 1;
-        statbuf->st_size = 1024;
     }
-    else
-        ret= -ENOENT;
 
     RETURN(ret);
 }
+
+
 
 /// @brief Change file permissions.
 ///
@@ -426,9 +425,10 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
                 filler(buf,fileArray[i].name,NULL, 0);
             }
         }
-
+/*
         filler( buf, "file54", NULL, 0 );
         filler( buf, "file349", NULL, 0 );
+        */
     }
 
     RETURN(0);
