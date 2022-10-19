@@ -112,7 +112,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 
     for(int i = 0; i < NUM_DIR_ENTRIES; i++)
     {
-        if(corArray[i]==-1)
+        if(corArray[i] == -1)
         {
             fileArray[i] = newFile;
             fileArray[i].data = (char*) malloc(SIZE);
