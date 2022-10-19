@@ -61,15 +61,15 @@ struct MyFsFileInfo{
 };
 
 MyFsFileInfo fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
+int corArray[NUM_DIR_ENTRIES];  // no file = -1    file = 0
 
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
     MyFsFileInfo* pointer = fileArray;
-    for(int i=0;i<NUM_DIR_ENTRIES;i++,pointer++)
+    for(int i=0;i<NUM_DIR_ENTRIES;i++)
     {
-        pointer= nullptr;
-        LOG("NullPtr gesetzt");
+        corArray[i]=-1;
     }
 
  }
@@ -98,7 +98,6 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 
     // TODO: [PART 1] Implement this!
 
-
     MyFsFileInfo newFile;
     strcpy(newFile.name, path+1); //Dateiname
     newFile.size=SIZE;
@@ -113,10 +112,11 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     MyFsFileInfo* pointer = fileArray;
     for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
     {
-        if(pointer== nullptr)
+        if(corArray[i]==-1)
         {
             fileArray[i]=newFile;
             fileArray[i].data=(char*) malloc(SIZE);
+            corArray[i]=0;
             break;
         }
     }
@@ -150,6 +150,7 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
             fileArray[i].atime = NULL;
             fileArray[i].mtime=NULL;
             fileArray[i].ctime=NULL;
+            corArray[i]=-1;
             break;
         }
     }
@@ -209,11 +210,18 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
 
     int ret= 0;
 
-    if ( strcmp( path, "/" ) == 0 )
-    {
+    if ( strcmp( path, "/" ) == 0 ) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
-    }
+        //Unser Code
+/*        for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+            if (corArray[i] == 0) {
+                statbuf->st_mode = S_IFREG | 0644;
+                statbuf->st_nlink = 1;
+                statbuf->st_size = fileArray[i].size;
+            }
+        }
+  */  }
     else if ( strcmp( path, "/file54" ) == 0 || ( strcmp( path, "/file349" ) == 0 ) )
     {
         statbuf->st_mode = S_IFREG | 0644;
@@ -406,9 +414,9 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     LOGF( "--> Getting The List of Files of %s\n", path );
 
     MyFsFileInfo testFile;
-    strcpy(testFile.name,"Hi");
+    strcpy(testFile.name,"Hi.txt");
     fileArray[0]=testFile;
-    LOGF("%s\n", fileArray[0].name );
+    corArray[0]=0;
 
     filler( buf, ".", NULL, 0 ); // Current Directory
     filler( buf, "..", NULL, 0 ); // Parent Directory
@@ -419,9 +427,9 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
         for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
         {
             //TODO: Fehler if, geht trotzdem rein obwohl kein file ist!!!
-            if(pointer != nullptr)
+            if(corArray[i]==0)
             {
-                filler(buf,"test",NULL, 0);
+                filler(buf,fileArray[i].name,NULL, 0);
             }
         }
 
