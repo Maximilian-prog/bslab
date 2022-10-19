@@ -170,6 +170,17 @@ int MyInMemoryFS::fuseRename(const char *path, const char *newpath) {
     LOGM();
 
     // TODO: [PART 1] Implement this!
+    int ret = -ENOENT;
+    const char* oldName = path+1;
+    for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if(corArray[i]==0) {
+            if (strcmp(fileArray[i].name, oldName) == 0) {
+                strcpy(fileArray[i].name, newpath + 1);
+                ret = 0;
+                break;
+            }
+        }
+    }
 
     return 0;
 }
@@ -244,7 +255,16 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
 
     // TODO: [PART 1] Implement this!
 
-    RETURN(0);
+    for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+        {
+            fileArray[i].mode=mode;
+            ret = 0;
+            break;
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Change the owner of a file.
@@ -260,7 +280,17 @@ int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
 
     // TODO: [PART 1] Implement this!
 
-    RETURN(0);
+    for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+        {
+            fileArray[i].uid=uid;
+            fileArray[i].gid=gid;
+            ret = 0;
+            break;
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Open a file.
