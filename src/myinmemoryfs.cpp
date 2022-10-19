@@ -63,13 +63,13 @@ struct MyFsFileInfo{
 MyFsFileInfo fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
 int corArray[NUM_DIR_ENTRIES];  // no file = -1    file = 0
 
+//Kontsruktor
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
 
     // TODO: [PART 1] Add your constructor code here
-    MyFsFileInfo* pointer = fileArray;
-    for(int i=0;i<NUM_DIR_ENTRIES;i++)
+    for(int i = 0; i < NUM_DIR_ENTRIES; i++)
     {
-        corArray[i]=-1;
+        corArray[i]= -1;
     }
 
  }
@@ -109,14 +109,14 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     newFile.ctime=time(&timer);
     newFile.data;
 
-    MyFsFileInfo* pointer = fileArray;
-    for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
+
+    for(int i = 0; i < NUM_DIR_ENTRIES; i++)
     {
         if(corArray[i]==-1)
         {
-            fileArray[i]=newFile;
-            fileArray[i].data=(char*) malloc(SIZE);
-            corArray[i]=0;
+            fileArray[i] = newFile;
+            fileArray[i].data = (char*) malloc(SIZE);
+            corArray[i] = 0;
             break;
         }
     }
@@ -136,13 +136,12 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
     char* fname;
     strcpy(fname, path+1); //Dateiname
 
-    MyFsFileInfo* pointer = fileArray;
-    for(int i =0; i < NUM_DIR_ENTRIES; i++, pointer++)
+    for(int i =0; i < NUM_DIR_ENTRIES; i++)
     {
-        if(strcmp(fname,path)==0)  //fname == path
+        if(strcmp(fname,path+1) == 0)  //fname == path
         {
             free(fileArray[i].data);
-            fileArray[i].size=0;
+            fileArray[i].size = 0;
             strcpy(fileArray[i].name, ""); //Dateiname
             fileArray[i].uid =NULL;
             fileArray[i].gid = NULL;
@@ -412,11 +411,6 @@ int MyInMemoryFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t fille
     // TODO: [PART 1] Implement this!
 
     LOGF( "--> Getting The List of Files of %s\n", path );
-
-    MyFsFileInfo testFile;
-    strcpy(testFile.name,"Hi.txt");
-    fileArray[0]=testFile;
-    corArray[0]=0;
 
     filler( buf, ".", NULL, 0 ); // Current Directory
     filler( buf, "..", NULL, 0 ); // Parent Directory
