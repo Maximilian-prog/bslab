@@ -100,7 +100,7 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
 
     MyFsFileInfo newFile;
     strcpy(newFile.name, path+1); //Dateiname
-    newFile.size=SIZE;
+    newFile.size = SIZE;
     newFile.uid = geteuid();
     newFile.gid = getgid();
     newFile.mode = mode;
