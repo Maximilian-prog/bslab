@@ -62,6 +62,7 @@ struct MyFsFileInfo {
 
 MyFsFileInfo fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
 int corArray[NUM_DIR_ENTRIES];  // no file = -1    file = 0
+int openFiles = 0;
 
 //Kontsruktor
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
@@ -286,11 +287,9 @@ int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
         {
             if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
             {
-                LOGF("UID GID ändern: %s", "user");
                 fileArray[i].uid = uid;
                 fileArray[i].gid = gid;
                 ret = 0;
-                LOGF("UID GID geändert: %s", "testuser");
                 break;
             }
         }
@@ -309,10 +308,16 @@ int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
 /// \return 0 on success, -ERRNO on failure.
 int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     LOGM();
-
     // TODO: [PART 1] Implement this!
 
-    RETURN(0);
+    int ret = 0;
+    openFiles++;
+    if(openFiles>NUM_OPEN_FILES)
+    {
+        ret = -EMFILE;
+        openFiles--;
+    }
+    RETURN(ret);
 }
 
 /// @brief Read from a file.
@@ -374,13 +379,30 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
 /// the file.
 /// \param [in] fileInfo Can be ignored in Part 1 .
 /// \return Number of bytes written on success, -ERRNO on failure.
-int
-MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
+int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
-
     // TODO: [PART 1] Implement this!
 
-    RETURN(0);
+    int ret = -EAGAIN;
+
+    for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if (corArray[i] == 0)
+        {
+            if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+            {
+                if(fileArray[i].size < size + offset) //size of file is too small
+                {
+                    fileArray[i].size *= 2;
+                    fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
+                }
+                memcpy(&buf,(char*)(fileArray[i].data + offset), size);
+                ret = 0;
+                break;
+            }
+        }
+    }
+
+                RETURN(ret);
 }
 
 /// @brief Close a file.
