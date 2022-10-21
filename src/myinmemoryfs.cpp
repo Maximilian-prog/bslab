@@ -254,11 +254,14 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
     int ret = -ENOENT;
 
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
-        if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+        if(corArray[i]==0)
         {
-            fileArray[i].mode=mode;
-            ret = 0;
-            break;
+            if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+            {
+                fileArray[i].mode = mode;
+                ret = 0;
+                break;
+            }
         }
     }
 
@@ -277,8 +280,6 @@ int MyInMemoryFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
     LOGM();
     // TODO: [PART 1] Implement this!
     int ret = -ENOENT;
-
-    //TODO: Fehler beheben: Logs werden ausgeführt, trotzdem ist user immernoch owner
 
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
         if(corArray[i]==0)
