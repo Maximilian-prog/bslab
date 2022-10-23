@@ -383,7 +383,7 @@ int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_
     LOGM();
     // TODO: [PART 1] Implement this!
 
-    int ret = -EAGAIN;
+    int ret = -ENOENT;
 
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (corArray[i] == 0)
@@ -392,17 +392,17 @@ int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_
             {
                 if(fileArray[i].size < size + offset) //size of file is too small
                 {
-                    fileArray[i].size *= 2;
+                    fileArray[i].size *= size + offset;
                     fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
                 }
-                memcpy(&buf,(char*)(fileArray[i].data + offset), size);
-                ret = 0;
+                memcpy(fileArray[i].data + offset,buf, size);
+                ret = size;
+                fileArray[i].atime = time(NULL);
                 break;
             }
         }
     }
-
-                RETURN(ret);
+    RETURN(ret);
 }
 
 /// @brief Close a file.
