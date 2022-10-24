@@ -232,6 +232,7 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
                     statbuf->st_nlink = 1;
                     statbuf->st_size = fileArray[i].size;
                     ret = 0;
+                    break;
                 }
             }
         }
@@ -311,11 +312,19 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     // TODO: [PART 1] Implement this!
 
     int ret = 0;
-    openFiles++;
-    if(openFiles>NUM_OPEN_FILES)
-    {
-        ret = -EMFILE;
-        openFiles--;
+    for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if (corArray[i] == 0) {
+            if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+            {
+                openFiles++;
+                fileArray[i].atime=time(NULL);
+                if (openFiles > NUM_OPEN_FILES) {
+                    ret = -EMFILE;
+                    openFiles--;
+                }
+                break;
+            }
+        }
     }
     RETURN(ret);
 }
@@ -341,15 +350,29 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
     LOGM();
 
     // TODO: [PART 1] Implement this!
-
     LOGF("--> Trying to read %s, %lu, %lu\n", path, (unsigned long) offset, size);
-
+    int ret = -ENOENT;
+/*
     char file54Text[] = "Hello World From File54!\n";
     char file349Text[] = "Hello World From File349!\n";
+*/
     char *selectedText = NULL;
 
-    // ... //
+    for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if (corArray[i] == 0) {
+            if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+            {
+                if (fileArray[i].size > 0) {
+                    memcpy(buf, fileArray[i].data + offset, size);
+                    ret=(int) (strlen(selectedText) - offset);
+                    break;
+                }
+            }
+        }
+    }
 
+    // ... //
+/*
     if (strcmp(path, "/file54") == 0)
         selectedText = file54Text;
     else if (strcmp(path, "/file349") == 0)
@@ -358,10 +381,10 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
         return -ENOENT;
 
     // ... //
-
+**/
     memcpy(buf, selectedText + offset, size);
 
-    RETURN((int) (strlen(selectedText) - offset));
+    RETURN(ret);
 }
 
 /// @brief Write to a file.
@@ -415,8 +438,22 @@ int MyInMemoryFS::fuseRelease(const char *path, struct fuse_file_info *fileInfo)
     LOGM();
 
     // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    int ret = 0;
+    for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if (corArray[i] == 0) {
+            if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+            {
+                openFiles--;
+                if (openFiles < 0)
+                {
+                    ret = -EMFILE;
+                    openFiles++;
+                }
+                break;
+            }
+        }
+    }
+    RETURN(ret);
 }
 
 /// @brief Truncate a file.
@@ -432,7 +469,21 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
 
     // TODO: [PART 1] Implement this!
 
-    return 0;
+    int ret = -ENOENT;
+
+    for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if (corArray[i] == 0) {
+            if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+            {
+                fileArray[i].size=newSize;
+                fileArray[i].data=(char*) realloc(fileArray[i].data, fileArray[i].size);
+                fileArray[i].mtime=time(NULL);
+                ret = 0;
+                break;
+            }
+        }
+    }
+    return ret;
 }
 
 /// @brief Truncate a file.
@@ -449,8 +500,8 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file
     LOGM();
 
     // TODO: [PART 1] Implement this!
-
-    RETURN(0);
+    int ret = fuseTruncate(path,newSize, fileInfo );
+    RETURN(ret);
 }
 
 /// @brief Read a directory.
