@@ -416,7 +416,7 @@ int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_
                     fileArray[i].size = size + offset;
                     fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
                 }
-                memcpy(fileArray[i].data + offset,buf, size);
+                memcpy(fileArray[i].data + offset ,buf, size);
                 ret = size;
                 fileArray[i].atime = time(NULL);
                 break;
