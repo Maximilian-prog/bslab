@@ -356,17 +356,17 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
     char file54Text[] = "Hello World From File54!\n";
     char file349Text[] = "Hello World From File349!\n";
 */
-    char *selectedText = NULL;
 
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (corArray[i] == 0) {
             if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
             {
-                if (fileArray[i].size > 0) {
+                if (fileArray[i].size > 0)
+                {
                     memcpy(buf, fileArray[i].data + offset, size);
-                    ret=(int) (strlen(selectedText) - offset);
-                    break;
+                    ret = (int) (strlen(buf) - offset);
                 }
+                break;
             }
         }
     }
@@ -413,7 +413,7 @@ int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_
             {
                 if(fileArray[i].size < size + offset) //size of file is too small
                 {
-                    fileArray[i].size *= size + offset;
+                    fileArray[i].size = size + offset;
                     fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
                 }
                 memcpy(fileArray[i].data + offset,buf, size);
