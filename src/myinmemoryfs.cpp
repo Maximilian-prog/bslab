@@ -416,7 +416,7 @@ int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_
             {
                 if(fileArray[i].size <= size + offset) //size of file is too small
                 {
-                    fileArray[i].size = size + offset;
+                    fileArray[i].size = fileArray[i].size * 2;
                     fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
                 }
                 memcpy(fileArray[i].data + offset ,buf, size);
