@@ -234,7 +234,7 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
         for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
             if (corArray[i] == 0) {
                 if (strcmp(path + 1, fileArray[i].name) == 0) {
-                    statbuf->st_mode = S_IFREG | 0644;
+                    statbuf->st_mode = fileArray[i].mode;
                     statbuf->st_nlink = 1;
                     statbuf->st_size = fileArray[i].size;
                     ret = 0;
@@ -374,7 +374,7 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
                 if (fileArray[i].size > 0)
                 {
                     memcpy(buf, fileArray[i].data + offset, size);
-                    ret = (int) (strlen(buf) - offset);
+                    ret = size;
                 }
                 break;
             }
@@ -516,12 +516,15 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file
             {
                 if(fileArray[i].isOpen)
                 {
-                    int truncate = fuseTruncate(path,newSize);
-                    if(truncate != -ENOENT)
+                    if(fileArray[i].size > newSize)
                     {
-                        ret = 0;
-                        break;
+                        fileArray[i].size = fileArray[i].size - newSize;
+                    }else {
+                        fileArray[i].size = newSize;
                     }
+                    fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
+                    fileArray[i].mtime=time(NULL);
+                    ret = 0;
                 }
                 break;
             }

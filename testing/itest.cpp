@@ -8,6 +8,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <stdio.h>
+#include <iostream>
+
+using namespace std;
 
 #include "../catch/catch.hpp"
 
@@ -370,9 +374,11 @@ TEST_CASE("T-1.08", "[Part_1]") {
     // Change mode
     REQUIRE(chmod(FILENAME, s.st_mode | S_IRWXG | S_IRWXO ) == 0);
 
+
     struct stat s2;
     REQUIRE(stat(FILENAME, &s2) == 0);
     REQUIRE(s2.st_mode == (s.st_mode | S_IRWXG | S_IRWXO));
+
 
     // remove file
     REQUIRE(unlink(FILENAME) >= 0);
