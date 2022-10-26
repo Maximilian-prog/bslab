@@ -58,11 +58,12 @@ struct MyFsFileInfo {
     time_t mtime; //letzte Veränderungen
     time_t ctime; //letzte Statusänderung
     char *data;   //Daten der Datei
+    bool isOpen;
 };
 
 MyFsFileInfo fileArray[NUM_DIR_ENTRIES]; //Array von den Dateien des MyFs
 int corArray[NUM_DIR_ENTRIES];  // no file = -1    file = 0
-int openFiles = 0;
+int openFiles = 0; // count of open files
 
 //Kontsruktor
 MyInMemoryFS::MyInMemoryFS() : MyFS() {
@@ -71,7 +72,6 @@ MyInMemoryFS::MyInMemoryFS() : MyFS() {
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
         corArray[i] = -1;
     }
-
 }
 
 /// @brief Destructor of the in-memory file system class.
@@ -96,7 +96,6 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     int ret = -EINVAL;
 
     const int SIZE = 1024;
-    time_t timer;
     // TODO: [PART 1] Implement this!
 
     MyFsFileInfo newFile;
@@ -105,11 +104,10 @@ int MyInMemoryFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     newFile.uid = geteuid();
     newFile.gid = getgid();
     newFile.mode = mode;
-    newFile.atime = time(&timer);
-    newFile.mtime = time(&timer);
-    newFile.ctime = time(&timer);
-    //newFile.data;
-
+    newFile.atime = time(NULL);
+    newFile.mtime = time(NULL);
+    newFile.ctime = time(NULL);
+    newFile.isOpen = false;
 
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (corArray[i] == -1) {
@@ -311,21 +309,26 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     LOGM();
     // TODO: [PART 1] Implement this!
 
+    // TODO: Check user permissions
+
     int ret = 0;
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (corArray[i] == 0) {
             if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
             {
                 openFiles++;
+                fileArray[i].isOpen = true;
                 fileArray[i].atime=time(NULL);
-                if (openFiles > NUM_OPEN_FILES) {
+                if (openFiles > NUM_OPEN_FILES) { // RESET
                     ret = -EMFILE;
                     openFiles--;
+                    fileArray[i].isOpen = false;
                 }
                 break;
             }
         }
     }
+
     RETURN(ret);
 }
 
@@ -411,7 +414,7 @@ int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_
         {
             if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
             {
-                if(fileArray[i].size < size + offset) //size of file is too small
+                if(fileArray[i].size <= size + offset) //size of file is too small
                 {
                     fileArray[i].size = size + offset;
                     fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
@@ -442,10 +445,12 @@ int MyInMemoryFS::fuseRelease(const char *path, struct fuse_file_info *fileInfo)
             if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
             {
                 openFiles--;
-                if (openFiles < 0)
+                fileArray[i].isOpen = false;
+                if (openFiles < 0) //RESET
                 {
                     ret = -EMFILE;
                     openFiles++;
+                    fileArray[i].isOpen = true;
                 }
                 break;
             }
@@ -498,7 +503,26 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file
     LOGM();
 
     // TODO: [PART 1] Implement this!
-    int ret = fuseTruncate(path,newSize, fileInfo );
+
+    int ret = -ENOENT;
+    for(int i=0; i < NUM_DIR_ENTRIES; i++)
+    {
+        if (corArray[i] == 0) {
+            if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
+            {
+                if(fileArray[i].isOpen)
+                {
+                    int truncate = fuseTruncate(path,newSize);
+                    if(truncate != -ENOENT)
+                    {
+                        ret = 0;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     RETURN(ret);
 }
 
