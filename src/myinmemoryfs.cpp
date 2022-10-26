@@ -47,6 +47,13 @@ using namespace std;
 ///
 /// You may add your own constructor code here.
 
+// Betriebsysteme Labor WS 22/3
+/*
+ * Luca Dock
+ * Jonas Blümm
+ * Maximilian Bücher
+ */
+
 // DatenStruktur
 struct MyFsFileInfo {
     char name[NAME_LENGTH];
@@ -133,10 +140,11 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
     int ret = -ENOENT;
 
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
+        if(corArray[i]==0){
         if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
         {
             strcpy(fileArray[i].name, ""); //Dateiname
-            free((void*)fileArray[i].data);
+            free((void *) fileArray[i].data);
             /*fileArray[i].uid = NULL;
             fileArray[i].gid = NULL;
             fileArray[i].mode = NULL;
@@ -148,6 +156,7 @@ int MyInMemoryFS::fuseUnlink(const char *path) {
             corArray[i] = -1;
             ret = 0;
             break;
+        }
         }
     }
 
@@ -221,7 +230,6 @@ int MyInMemoryFS::fuseGetattr(const char *path, struct stat *statbuf) {
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
     } else {
-        //Unser Code, Hashmap als alternative schnellere Implementierung
         ret = -ENOENT;
         for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
             if (corArray[i] == 0) {
@@ -260,6 +268,7 @@ int MyInMemoryFS::fuseChmod(const char *path, mode_t mode) {
             {
                 fileArray[i].mode = mode;
                 ret = 0;
+                /*LOGF("%o -- %o Mode",fileArray[i].mode, mode);*/
                 break;
             }
         }
@@ -309,8 +318,6 @@ int MyInMemoryFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     LOGM();
     // TODO: [PART 1] Implement this!
 
-    // TODO: Check user permissions
-
     int ret = 0;
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (corArray[i] == 0) {
@@ -354,7 +361,7 @@ int MyInMemoryFS::fuseRead(const char *path, char *buf, size_t size, off_t offse
 
     // TODO: [PART 1] Implement this!
     LOGF("--> Trying to read %s, %lu, %lu\n", path, (unsigned long) offset, size);
-    int ret = -ENOENT;
+    unsigned long ret = -ENOENT;
 /*
     char file54Text[] = "Hello World From File54!\n";
     char file349Text[] = "Hello World From File349!\n";
@@ -414,11 +421,8 @@ int MyInMemoryFS::fuseWrite(const char *path, const char *buf, size_t size, off_
         {
             if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
             {
-                if(fileArray[i].size <= size + offset) //size of file is too small
-                {
-                    fileArray[i].size = fileArray[i].size * 2;
-                    fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
-                }
+                fileArray[i].size = offset + size;
+                fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
                 memcpy(fileArray[i].data + offset ,buf, size);
                 ret = size;
                 fileArray[i].atime = time(NULL);
@@ -439,19 +443,14 @@ int MyInMemoryFS::fuseRelease(const char *path, struct fuse_file_info *fileInfo)
     LOGM();
 
     // TODO: [PART 1] Implement this!
-    int ret = 0;
+    int ret = -ENOENT;
     for (int i = 0; i < NUM_DIR_ENTRIES; i++) {
         if (corArray[i] == 0) {
             if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
             {
                 openFiles--;
                 fileArray[i].isOpen = false;
-                if (openFiles < 0) //RESET
-                {
-                    ret = -EMFILE;
-                    openFiles++;
-                    fileArray[i].isOpen = true;
-                }
+                ret = 0;
                 break;
             }
         }
@@ -478,8 +477,13 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize) {
         if (corArray[i] == 0) {
             if (strcmp(fileArray[i].name, path + 1) == 0)  //fileName == path
             {
-                fileArray[i].size=newSize;
-                fileArray[i].data=(char*) realloc(fileArray[i].data, fileArray[i].size);
+                if(fileArray[i].size > newSize)
+                {
+                    fileArray[i].size = fileArray[i].size - newSize;
+                }else {
+                    fileArray[i].size = newSize;
+                }
+                fileArray[i].data = (char *) realloc(fileArray[i].data, fileArray[i].size);
                 fileArray[i].mtime=time(NULL);
                 ret = 0;
                 break;
@@ -519,6 +523,7 @@ int MyInMemoryFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file
                         break;
                     }
                 }
+                break;
             }
         }
     }
