@@ -23,6 +23,39 @@
 #include "myfs-info.h"
 #include "blockdevice.h"
 
+struct Superblock {
+    int fileSystemSize;
+    int anzahlBloecke;
+    int startDmap;
+    int startFat;
+    int startData;
+};
+
+struct Dmap {
+    bool *dmap;
+};
+
+struct FAT {
+    int EOC = 0xFFFFFFFF; //EOC = -1;
+    int *fat;
+};
+
+struct MyFsFileInfo {
+    char name[NAME_LENGTH];
+    size_t size;
+    uid_t uid;
+    uid_t gid;
+    mode_t mode;//Permissions  rwx rwx rwx (user group other)
+    time_t atime; //Zeitpunkt letzter Zugriffe
+    time_t mtime; //letzte Veränderungen
+    time_t ctime; //letzte Statusänderung
+    int firstBlockInFAT; //Index des ersten Blocks in FAT
+};
+
+Superblock mySuperblock;
+Dmap myDmap;
+FAT myFat;
+
 /// @brief Constructor of the on-disk file system class.
 ///
 /// You may add your own constructor code here.
@@ -31,7 +64,7 @@ MyOnDiskFS::MyOnDiskFS() : MyFS() {
     this->blockDevice= new BlockDevice(BLOCK_SIZE);
 
     // TODO: [PART 2] Add your constructor code here
-
+    //blockDevice->create("/home/user/CLionProjects/bslab/build");
 }
 
 /// @brief Destructor of the on-disk file system class.
@@ -292,8 +325,39 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             LOG("Container file does exist, reading");
 
             // TODO: [PART 2] Read existing structures form file
+            //read Superblock
 
-        } else if(ret == -ENOENT) {
+            char superblock_array[BLOCK_SIZE];
+            for (int blockNo = 0; blockNo < 1 - 0; blockNo++) {
+                char sb_puffer[BLOCK_SIZE];
+                blockDevice->read(blockNo, sb_puffer);
+                memcpy( superblock_array+ blockNo, sb_puffer , BLOCK_SIZE);
+            }
+            memcpy(&mySuperblock, &superblock_array, sizeof(Superblock));
+
+            //read DMAP
+            char dmap_array[(mySuperblock.startFat-mySuperblock.startDmap)*BLOCK_SIZE];
+            for (int blockNo = mySuperblock.startDmap;
+                 blockNo < mySuperblock.startFat - mySuperblock.startDmap; blockNo++) {
+                char dmap_puffer[BLOCK_SIZE];
+                blockDevice->read(mySuperblock.startDmap, dmap_puffer);
+                memcpy(&myDmap + blockNo, dmap_puffer , BLOCK_SIZE);
+            }
+            memcpy(&myDmap, &dmap_array, sizeof(Dmap));
+
+            //read FAT
+            char fat_array[(mySuperblock.startData - mySuperblock.startFat)*BLOCK_SIZE];
+            for (int blockNo = mySuperblock.startFat;
+                 blockNo < mySuperblock.startData - mySuperblock.startFat; blockNo++) {
+                char fat_puffer[BLOCK_SIZE];
+                blockDevice->read(mySuperblock.startFat, fat_puffer);
+                memcpy( &myFat + blockNo,fat_puffer, BLOCK_SIZE);
+            }
+            memcpy(&myFat, &fat_array, sizeof(FAT));
+
+            LOG("%d  ioe vwo oefl");
+
+        } else if (ret == -ENOENT) {
             LOG("Container file does not exist, creating a new one");
 
             ret = this->blockDevice->create(((MyFsInfo *) fuse_get_context()->private_data)->contFile);
@@ -301,6 +365,43 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             if (ret >= 0) {
 
                 // TODO: [PART 2] Create empty structures in file
+                Superblock mySuperblock;
+                mySuperblock.anzahlBloecke = 51200; //51200*512 Byte = 26214400 Byte = 25,6 MiB
+                mySuperblock.fileSystemSize =
+                        26214400 + 5120000; // 26,21MiB + 5,12MiB <-- (Größe Superblock + FAT + Dmap)
+                mySuperblock.startDmap = 1; //nach 32 Bytes -> nach 512 Bytes (1. Block)
+                mySuperblock.startFat = mySuperblock.startDmap + 100 + 1; // nach Superblock und Dmap
+                mySuperblock.startData = mySuperblock.startFat + 400 + 1; // nach der FAT + 1 Integer für EOC
+
+                Dmap myDmap;
+                myDmap.dmap = new bool[mySuperblock.anzahlBloecke];
+
+                FAT myFat;
+                myFat.fat = new int[mySuperblock.anzahlBloecke + 1];
+                myFat.fat[mySuperblock.anzahlBloecke] = myFat.EOC;
+
+                //write Superblock
+                for (int blockNo = 0; blockNo < mySuperblock.startDmap - 0; blockNo++) {
+                    char sb_puffer[BLOCK_SIZE];
+                    memcpy(sb_puffer, &mySuperblock + blockNo, BLOCK_SIZE);
+                    blockDevice->write(blockNo, sb_puffer);
+                }
+
+                //write DMAP
+                for (int blockNo = mySuperblock.startDmap;
+                     blockNo < mySuperblock.startFat - mySuperblock.startDmap; blockNo++) {
+                    char dmap_puffer[BLOCK_SIZE];
+                    memcpy(dmap_puffer, &myDmap + blockNo, BLOCK_SIZE);
+                    blockDevice->write(mySuperblock.startDmap, dmap_puffer);
+                }
+
+                //write FAT
+                for (int blockNo = mySuperblock.startFat;
+                     blockNo < mySuperblock.startData - mySuperblock.startFat; blockNo++) {
+                    char fat_puffer[BLOCK_SIZE];
+                    memcpy(fat_puffer, &myFat + blockNo, BLOCK_SIZE);
+                    blockDevice->write(mySuperblock.startFat, fat_puffer);
+                }
 
             }
         }
