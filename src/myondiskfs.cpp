@@ -14,6 +14,11 @@
 #define DEBUG_METHODS
 #define DEBUG_RETURN_VALUES
 
+#include <iostream>
+#include <cstring>
+#include <string>
+#include <time.h>
+
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -225,7 +230,8 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
 /// the file.
 /// \param [in] fileInfo Can be ignored in Part 1 .
 /// \return Number of bytes written on success, -ERRNO on failure.
-int MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
+int
+MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fileInfo) {
     LOGM();
 
     // TODO: [PART 2] Implement this!
@@ -290,7 +296,8 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file_i
 /// \param [in] offset Can be ignored.
 /// \param [in] fileInfo Can be ignored.
 /// \return 0 on success, -ERRNO on failure.
-int MyOnDiskFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fileInfo) {
+int MyOnDiskFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
+                            struct fuse_file_info *fileInfo) {
     LOGM();
 
     // TODO: [PART 2] Implement this!
@@ -303,10 +310,10 @@ int MyOnDiskFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler,
 /// This function is called when the file system is mounted. You may add some initializing code here.
 /// \param [in] conn Can be ignored.
 /// \return 0.
-void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
+void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
     // Open logfile
-    this->logFile= fopen(((MyFsInfo *) fuse_get_context()->private_data)->logFile, "w+");
-    if(this->logFile == NULL) {
+    this->logFile = fopen(((MyFsInfo *) fuse_get_context()->private_data)->logFile, "w+");
+    if (this->logFile == NULL) {
         fprintf(stderr, "ERROR: Cannot open logfile %s\n", ((MyFsInfo *) fuse_get_context()->private_data)->logFile);
     } else {
         // turn of logfile buffering
@@ -318,9 +325,9 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
         LOGF("Container file name: %s", ((MyFsInfo *) fuse_get_context()->private_data)->contFile);
 
-        int ret= this->blockDevice->open(((MyFsInfo *) fuse_get_context()->private_data)->contFile);
+        int ret = this->blockDevice->open(((MyFsInfo *) fuse_get_context()->private_data)->contFile);
 
-        if(ret >= 0) {
+        if (ret >= 0) {
             LOG("Container file does exist, reading");
 
             // TODO: [PART 2] Read existing structures form file
@@ -405,10 +412,10 @@ void* MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             }
         }
 
-        if(ret < 0) {
+        if (ret < 0) {
             LOGF("ERROR: Access to container file failed with error %d", ret);
         }
-     }
+    }
 
     return 0;
 }
@@ -431,5 +438,5 @@ void MyOnDiskFS::fuseDestroy() {
 ///
 /// Do not edit this method!
 void MyOnDiskFS::SetInstance() {
-    MyFS::_instance= new MyOnDiskFS();
+    MyFS::_instance = new MyOnDiskFS();
 }
