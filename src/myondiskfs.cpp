@@ -61,8 +61,7 @@ FAT myFat;
 /// You may add your own constructor code here.
 MyOnDiskFS::MyOnDiskFS() : MyFS() {
     // create a block device object
-    this->blockDevice= new BlockDevice(BLOCK_SIZE);
-
+    this->blockDevice = new BlockDevice(BLOCK_SIZE);
     // TODO: [PART 2] Add your constructor code here
     //blockDevice->create("/home/user/CLionProjects/bslab/build");
 }
