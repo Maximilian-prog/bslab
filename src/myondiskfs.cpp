@@ -58,9 +58,14 @@ struct MyFsFileInfo {
     int firstBlockInFAT; //Index des ersten Blocks in FAT
 };
 
+struct Root{
+    MyFsFileInfo* root; //Array MyFsFileInfo (max 64)
+};
+
 Superblock mySuperblock;
 Dmap myDmap;
 FAT myFat;
+Root myRoot;
 
 /// @brief Constructor of the on-disk file system class.
 ///
@@ -352,7 +357,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             memcpy(&myDmap, &dmap_array, sizeof(Dmap));
 
             //read FAT
-            char fat_array[(mySuperblock.startData - mySuperblock.startFat)*BLOCK_SIZE];
+            char fat_array[(mySuperblock.startRoot - mySuperblock.startFat)*BLOCK_SIZE];
             for (int blockNo = mySuperblock.startFat;
                  blockNo < mySuperblock.startData - mySuperblock.startFat; blockNo++) {
                 char fat_puffer[BLOCK_SIZE];
@@ -362,12 +367,14 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             memcpy(&myFat, &fat_array, sizeof(FAT));
 
             //read Root
+            char root_array[(mySuperblock.startData-mySuperblock.startRoot)*BLOCK_SIZE];
             for (int blockNo = mySuperblock.startRoot;
                  blockNo < mySuperblock.startData - mySuperblock.startData; blockNo++) {
                 char root_puffer[BLOCK_SIZE];
                 blockDevice->read(mySuperblock.startRoot, root_puffer);
-                memcpy( &mySuperblock.startRoot+ blockNo, root_puffer, BLOCK_SIZE);
+                memcpy( &root_array + blockNo, root_puffer, BLOCK_SIZE);
             }
+            memcpy(&myRoot, &root_array, NUM_DIR_ENTRIES*BLOCK_SIZE);
 
         } else if (ret == -ENOENT) {
             LOG("Container file does not exist, creating a new one");
@@ -429,7 +436,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                     char root_puffer[BLOCK_SIZE];
                     for(int i =0;i< BLOCK_SIZE; i++)
                     {
-                        root_puffer[i] = 0xFFFF;
+                        root_puffer[i] = 0x0000;
                     }
                     blockDevice->write(mySuperblock.startRoot, root_puffer);
                 }
