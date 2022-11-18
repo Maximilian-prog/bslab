@@ -344,7 +344,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 blockDevice->read(blockNo, sb_puffer);
                 memcpy( &superblock_array + blockNo, sb_puffer , BLOCK_SIZE);
             }
-            memcpy(&mySuperblock, &superblock_array, sizeof(Superblock));
+            memcpy(&mySuperblock, &superblock_array, BLOCK_SIZE);
 
             //read DMAP
             char dmap_array[(mySuperblock.startFat-mySuperblock.startDmap)*BLOCK_SIZE];
@@ -354,7 +354,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 blockDevice->read(blockNo, dmap_puffer);
                 memcpy(&dmap_array + blockNo, dmap_puffer , BLOCK_SIZE);
             }
-            memcpy(&myDmap, &dmap_array, sizeof(Dmap));
+            memcpy(&myDmap, &dmap_array, (mySuperblock.startFat-mySuperblock.startDmap)*BLOCK_SIZE);
 
             //read FAT
             char fat_array[(mySuperblock.startRoot - mySuperblock.startFat)*BLOCK_SIZE];
@@ -364,7 +364,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 blockDevice->read(blockNo, fat_puffer);
                 memcpy( &fat_array + blockNo,fat_puffer, BLOCK_SIZE);
             }
-            memcpy(&myFat, &fat_array, sizeof(FAT));
+            memcpy(&myFat, &fat_array, (mySuperblock.startRoot - mySuperblock.startFat)*BLOCK_SIZE);
 
             //read Root
             char root_array[(mySuperblock.startData-mySuperblock.startRoot)*BLOCK_SIZE];
@@ -374,7 +374,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 blockDevice->read(mySuperblock.startRoot, root_puffer);
                 memcpy( &root_array + blockNo, root_puffer, BLOCK_SIZE);
             }
-            memcpy(&myRoot, &root_array, NUM_DIR_ENTRIES*BLOCK_SIZE);
+            memcpy(&myRoot, &root_array, (mySuperblock.startData-mySuperblock.startRoot)*BLOCK_SIZE);
 
         } else if (ret == -ENOENT) {
             LOG("Container file does not exist, creating a new one");
