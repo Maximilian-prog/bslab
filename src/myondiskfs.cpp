@@ -33,11 +33,17 @@ struct Superblock {
     int anzahlBloecke;
     int startDmap;
     int startFat;
+    int startRoot; // Inodes
+    int startIMap;
     int startData;
 };
 
 struct Dmap {
     bool *dmap;
+};
+
+struct Imap {
+    bool *imap;
 };
 
 struct FAT {
@@ -332,7 +338,6 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
             // TODO: [PART 2] Read existing structures form file
             //read Superblock
-
             char superblock_array[BLOCK_SIZE];
             for (int blockNo = 0; blockNo < 1 - 0; blockNo++) {
                 char sb_puffer[BLOCK_SIZE];
@@ -377,7 +382,9 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                         26214400 + 5120000; // 26,21MiB + 5,12MiB <-- (Größe Superblock + FAT + Dmap)
                 mySuperblock.startDmap = 1; //nach 32 Bytes -> nach 512 Bytes (1. Block)
                 mySuperblock.startFat = mySuperblock.startDmap + 100 + 1; // nach Superblock und Dmap
-                mySuperblock.startData = mySuperblock.startFat + 400 + 1; // nach der FAT + 1 Integer für EOC
+                mySuperblock.startIMap =
+                mySuperblock.startRoot =
+                mySuperblock.startData =
 
                 Dmap myDmap;
                 myDmap.dmap = new bool[mySuperblock.anzahlBloecke];
