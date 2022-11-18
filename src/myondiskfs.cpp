@@ -362,7 +362,6 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             memcpy(&myFat, &fat_array, sizeof(FAT));
 
             //read Root
-            char root_array[(mySuperblock.startData - mySuperblock.startRoot) * BLOCK_SIZE];
             for (int blockNo = mySuperblock.startRoot;
                  blockNo < mySuperblock.startData - mySuperblock.startData; blockNo++) {
                 char root_puffer[BLOCK_SIZE];
@@ -404,6 +403,10 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 for (int blockNo = mySuperblock.startDmap;
                      blockNo < mySuperblock.startFat - mySuperblock.startDmap; blockNo++) {
                     char dmap_puffer[BLOCK_SIZE];
+                    for(int i =0;i < BLOCK_SIZE;i++)
+                    {
+                        dmap_puffer[i]=0x0000;
+                    }
                     memcpy(dmap_puffer, &myDmap + blockNo, BLOCK_SIZE);
                     blockDevice->write(mySuperblock.startDmap, dmap_puffer);
                 }
@@ -412,6 +415,10 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 for (int blockNo = mySuperblock.startFat;
                      blockNo < mySuperblock.startData - mySuperblock.startFat; blockNo++) {
                     char fat_puffer[BLOCK_SIZE];
+                    for(int i =0;i < BLOCK_SIZE;i++)
+                    {
+                        fat_puffer[i]=0x0000;
+                    }
                     memcpy(fat_puffer, &myFat + blockNo, BLOCK_SIZE);
                     blockDevice->write(mySuperblock.startFat, fat_puffer);
                 }
