@@ -28,6 +28,31 @@
 #include "myfs-info.h"
 #include "blockdevice.h"
 
+//Sizes in blocks
+#define Superblock_Size 1
+#define Dmap_Size_arr 51200
+#define Dmap_Size 100
+#define FAT_Size 800
+#define FAT_Size_arr (800*(BLOCK_SIZE)/4)
+#define Root_Size 64
+#define Root_Size_arr 64
+#define Data_Size 0
+
+#define byteToBlock(byte) ((byte)/(BLOCK_SIZE))
+#define blockCount 51200
+#define blockToByte(numberOfBlocks) ((BLOCK_SIZE) * (numberOfBlocks))
+#define startSUPERBLOCK 0
+#define startDMAP 1
+#define startFAT ((Superblock_Size) + (Dmap_Size))
+#define startROOT ((startFAT) + 800)
+#define startDATA ((startROOT) + (NUM_DIR_ENTRIES))
+
+#define endSUPERBLOCK 1
+#define endDMAP (startFAT - 1)
+#define endFAT (startROOT - 1)
+#define endROOT (startDATA - 1)
+#define endDATA blockCount
+
 struct Superblock {
     int fileSystemSize;
     int anzahlBloecke;
@@ -38,7 +63,7 @@ struct Superblock {
 };
 
 struct Dmap {
-    bool *dmap;
+    bool* dmap;
 };
 
 struct FAT {
@@ -361,9 +386,9 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             char fat_puffer[BLOCK_SIZE];
             for (int blockNo = startFAT; blockNo <= endFAT; blockNo++, i++) {
                 blockDevice->read(blockNo, fat_puffer);
-                memcpy( &fat_array + blockNo,fat_puffer, BLOCK_SIZE);
+                memcpy( ptrFAT + BLOCK_SIZE * i,fat_puffer, BLOCK_SIZE);
             }
-            memcpy(&myFat, &fat_array, (mySuperblock.startRoot - mySuperblock.startFat)*BLOCK_SIZE);
+            LOG("FAT gelesen");
 
             //read Root
             myRoot.root = new MyFsFileInfo[Root_Size_arr];
