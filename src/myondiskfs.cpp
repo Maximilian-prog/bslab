@@ -406,7 +406,11 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 myDmap.dmap = new bool[Dmap_Size_arr];
 
                 FAT myFat;
-                myFat.fat = new int[mySuperblock.anzahlBloecke + NUM_DIR_ENTRIES];
+                // 800 Blöcke Fat-Größe * 512 Byte Blocksize / 4 Byte Größe Integer
+                myFat.fat = new unsigned int[FAT_Size_arr];
+
+                Root myRoot;
+                myRoot.root= new MyFsFileInfo[Root_Size_arr];
 
                 //write Superblock
                 char sb_puffer[BLOCK_SIZE];
@@ -427,15 +431,15 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 }
 
                 //write FAT
-                for (int blockNo = mySuperblock.startFat;
-                     blockNo < mySuperblock.startData - mySuperblock.startFat; blockNo++) {
-                    char fat_puffer[BLOCK_SIZE];
-                    for(int i =0;i < BLOCK_SIZE;i++)
-                    {
-                        fat_puffer[i]=0x0000;
-                    }
-                    memcpy(fat_puffer, &myFat + blockNo, BLOCK_SIZE);
-                    blockDevice->write(mySuperblock.startFat, fat_puffer);
+                char fat_puffer[BLOCK_SIZE];
+                for(int i =0;i < BLOCK_SIZE;i++)
+                {
+                    fat_puffer[i]=0x0000;
+                }
+                for (int blockNo = startFAT;
+                     blockNo <= endFAT; blockNo++) {
+                    //memcpy(fat_puffer, &myFat + blockNo, BLOCK_SIZE);
+                    blockDevice->write(mySuperblock.startFat + blockNo, fat_puffer);
                 }
 
                 //write Root => Blöcke mit 0en beschreiben (freier Block für Inode)
