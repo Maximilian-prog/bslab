@@ -80,6 +80,7 @@ struct MyFsFileInfo {
     time_t atime; //Zeitpunkt letzter Zugriffe
     time_t mtime; //letzte Veränderungen
     time_t ctime; //letzte Statusänderung
+    bool isOpen;
     int firstBlockInFAT; //Index des ersten Blocks in FAT
 };
 
@@ -125,8 +126,47 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    int ret = -EINVAL;
+    const int SIZE = 1024;
 
-    RETURN(0);
+    MyFsFileInfo newFile;
+    strcpy(newFile.name, path + 1); //Dateiname
+    newFile.size = SIZE;
+    newFile.uid = geteuid();
+    newFile.gid = getgid();
+    newFile.mode = mode;
+    newFile.atime = time(NULL);
+    newFile.mtime = time(NULL);
+    newFile.ctime = time(NULL);
+    newFile.isOpen = false;
+
+    //TODO: Search Root for free space (done)
+    MyFsFileInfo current;
+    for(int i =0; i<Root_Size_arr; i++)
+    {
+        current = myRoot.root[i];
+        if(strcmp(current.name, "") == 0) // freier Eintrag in Root gefunden
+        {
+            char puffer[BLOCK_SIZE];
+            myRoot.root[i] = current;
+            memcpy(puffer, &current, sizeof(MyFsFileInfo));
+            blockDevice->write(startROOT + i, puffer);
+            break;
+        }
+    }
+
+    //TODO: Search DMAP for free space + enter in fat
+    int offset_dmap = startDATA;
+    for(int i = 0; i< Dmap_Size_arr; i++)
+    {
+        if(myDmap.dmap[offset_dmap + i] == true) // freier Eintrag in DMAP gefunden
+        {
+            myDmap.dmap[offset_dmap+i] = false;
+
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Delete a file.
