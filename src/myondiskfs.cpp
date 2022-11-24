@@ -392,12 +392,13 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
             //read Root
             myRoot.root = new MyFsFileInfo[Root_Size_arr];
-            i=0;
-            char* ptrROOT =(char*)(myRoot.root);
+            i = 0;
             char root_puffer[BLOCK_SIZE];
             for (int blockNo = startROOT; blockNo <= endROOT; blockNo++,i++) {
+                MyFsFileInfo myFsFileInfo;
                 blockDevice->read(blockNo, root_puffer);
-                memcpy(ptrROOT + i * BLOCK_SIZE, root_puffer, BLOCK_SIZE);
+                memcpy(&myFsFileInfo, root_puffer, sizeof(MyFsFileInfo));
+                myRoot.root[i] = myFsFileInfo;
             }
             LOG("Root gelesen");
 
@@ -410,9 +411,9 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
                 // TODO: [PART 2] Create empty structures in file
                 Superblock mySuperblock;
-                mySuperblock.anzahlBloecke = blockCount; //51200*512 Byte = 26214400 Byte = 25,6 MiB
+                mySuperblock.anzahlBloecke = blockCount;
                 LOGF("Blockcount %d",  blockCount);
-                mySuperblock.fileSystemSize = blockToByte(blockCount);
+                mySuperblock.fileSystemSize = blockToByte(blockCount); //51200*512 Byte = 26214400 Byte = 25,6 MiB
                 LOGF("fileSystemSize %d", blockToByte(blockCount));
                 mySuperblock.startDmap = startDMAP; //nach 512 Bytes (1. Block)
                 // nach Superblock und Dmap, 51200 / 512 = 100 (Anzahl aller Blöcke / Boolean pro Block -> Boolean = 1 Byte
