@@ -63,12 +63,12 @@ struct Superblock {
 };
 
 struct Dmap {
-    bool* dmap;
+    bool *dmap;
 };
 
 struct FAT {
     int EOC = 0xFFFFFFFF; //EOC = -1;
-    uint32_t* fat;
+    uint32_t *fat;
 };
 
 struct MyFsFileInfo {
@@ -84,8 +84,8 @@ struct MyFsFileInfo {
     int firstBlockInFAT; //Index des ersten Blocks in FAT
 };
 
-struct Root{
-    MyFsFileInfo* root; //Array MyFsFileInfo (max 64)
+struct Root {
+    MyFsFileInfo *root; //Array MyFsFileInfo (max 64)
 };
 
 Superblock mySuperblock;
@@ -124,7 +124,6 @@ MyOnDiskFS::~MyOnDiskFS() {
 /// \return 0 on success, -ERRNO on failure.
 int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
-
     // TODO: [PART 2] Implement this!
     int ret = -EINVAL;
     const int SIZE = BLOCK_SIZE;
@@ -441,28 +440,28 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             //read Superblock
             char sb_puffer[BLOCK_SIZE];
             blockDevice->read(0, sb_puffer);
-            memcpy(&mySuperblock,&sb_puffer, BLOCK_SIZE);
-            LOGF("Superblock gelesen %d" , mySuperblock.anzahlBloecke);
+            memcpy(&mySuperblock, &sb_puffer, BLOCK_SIZE);
+            LOGF("Superblock gelesen %d", mySuperblock.anzahlBloecke);
 
             //read DMAP
             myDmap.dmap = new bool[Dmap_Size_arr];
-            int i=0;
-            char* ptrDMAP = (char*)(myDmap.dmap);
+            int i = 0;
+            char *ptrDMAP = (char *) (myDmap.dmap);
             char dmap_puffer[BLOCK_SIZE];
             for (int blockNo = startDMAP; blockNo <= endDMAP; blockNo++, i++) {
-               blockDevice->read(blockNo, dmap_puffer);
-               memcpy(ptrDMAP + BLOCK_SIZE * i, dmap_puffer, BLOCK_SIZE);
+                blockDevice->read(blockNo, dmap_puffer);
+                memcpy(ptrDMAP + BLOCK_SIZE * i, dmap_puffer, BLOCK_SIZE);
             }
             LOG("DMAP gelesen");
 
             //read FAT
             myFat.fat = new uint32_t[FAT_Size_arr];
             i = 0;
-            char* ptrFAT = (char*)(myFat.fat);
+            char *ptrFAT = (char *) (myFat.fat);
             char fat_puffer[BLOCK_SIZE];
             for (int blockNo = startFAT; blockNo <= endFAT; blockNo++, i++) {
                 blockDevice->read(blockNo, fat_puffer);
-                memcpy( ptrFAT + BLOCK_SIZE * i,fat_puffer, BLOCK_SIZE);
+                memcpy(ptrFAT + BLOCK_SIZE * i, fat_puffer, BLOCK_SIZE);
             }
             LOG("FAT gelesen");
 
@@ -470,7 +469,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             myRoot.root = new MyFsFileInfo[Root_Size_arr];
             i = 0;
             char root_puffer[BLOCK_SIZE];
-            for (int blockNo = startROOT; blockNo <= endROOT; blockNo++,i++) {
+            for (int blockNo = startROOT; blockNo <= endROOT; blockNo++, i++) {
                 MyFsFileInfo myFsFileInfo;
                 blockDevice->read(blockNo, root_puffer);
                 memcpy(&myFsFileInfo, root_puffer, sizeof(MyFsFileInfo));
@@ -488,7 +487,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 // TODO: [PART 2] Create empty structures in file
                 Superblock mySuperblock;
                 mySuperblock.anzahlBloecke = blockCount;
-                LOGF("Blockcount %d",  blockCount);
+                LOGF("Blockcount %d", blockCount);
                 mySuperblock.fileSystemSize = blockToByte(blockCount); //51200*512 Byte = 26214400 Byte = 25,6 MiB
                 LOGF("fileSystemSize %d", blockToByte(blockCount));
                 mySuperblock.startDmap = startDMAP; //nach 512 Bytes (1. Block)
@@ -502,7 +501,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 LOGF("startRoot %d", startROOT);
                 //Root: Jede Inode (MyFsFileInfo) bekommt 1 Block
                 mySuperblock.startData = startDATA;// nach Root
-                LOGF("startData %d",  startDATA);
+                LOGF("startData %d", startDATA);
 
                 Dmap myDmap;
                 myDmap.dmap = new bool[Dmap_Size_arr];
@@ -512,7 +511,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 myFat.fat = new unsigned int[FAT_Size_arr];
 
                 Root myRoot;
-                myRoot.root= new MyFsFileInfo[Root_Size_arr];
+                myRoot.root = new MyFsFileInfo[Root_Size_arr];
 
                 //write Superblock
                 char sb_puffer[BLOCK_SIZE];
@@ -522,9 +521,8 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 //write DMAP
                 //Block mit 0en befüllen
                 char dmap_puffer[BLOCK_SIZE];
-                for(int i = 0;i < BLOCK_SIZE; i++)
-                {
-                    dmap_puffer[i]=0x0000;
+                for (int i = 0; i < BLOCK_SIZE; i++) {
+                    dmap_puffer[i] = 0x0000;
                 }
                 for (int blockNo = mySuperblock.startDmap;
                      blockNo <= endDMAP; blockNo++) {
@@ -534,9 +532,8 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
                 //write FAT
                 char fat_puffer[BLOCK_SIZE];
-                for(int i =0;i < BLOCK_SIZE;i++)
-                {
-                    fat_puffer[i]=0x0000;
+                for (int i = 0; i < BLOCK_SIZE; i++) {
+                    fat_puffer[i] = 0x0000;
                 }
                 for (int blockNo = startFAT;
                      blockNo <= endFAT; blockNo++) {
@@ -546,11 +543,10 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
 
                 //write Root => Blöcke mit 0en beschreiben (freier Block für Inode)
                 char root_puffer[BLOCK_SIZE];
-                for(int i =0;i< BLOCK_SIZE; i++)
-                {
+                for (int i = 0; i < BLOCK_SIZE; i++) {
                     root_puffer[i] = 0x0000;
                 }
-                for (int blockNo =startROOT;
+                for (int blockNo = startROOT;
                      blockNo <= endROOT; blockNo++) {
                     blockDevice->write(mySuperblock.startRoot + blockNo, root_puffer);
                 }
