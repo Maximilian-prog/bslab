@@ -145,9 +145,7 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
         if (strcmp(current.name, "") == 0) // freier Eintrag in Root gefunden
         {
             myRoot.root[i] = newFile;
-            char puffer_block[BLOCK_SIZE];
-            memcpy(puffer_block, &newFile, sizeof(MyFsFileInfo));
-            blockDevice->write(startROOT + i, puffer_block);
+            writeBlockOfStructure("root", i, &newFile);
             break;
         }
     }
@@ -157,36 +155,30 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
         if (myDmap.dmap[i] == 0) // freier Eintrag in DMAP gefunden
         {
             myDmap.dmap[i] = 1;
-            char puffer_block[BLOCK_SIZE];
-            uint32_t block = i / BLOCK_SIZE; //Anfang des Blocks als Adresse
-            memcpy(puffer_block, &myDmap.dmap + i * block, BLOCK_SIZE);
-            blockDevice->write(startDMAP + block, puffer_block);
+            writeBlockOfStructure("dmap", i, NULL);
 
             //vorderen Indexe der FAT für EOC-Indexe nutzen
             for (int j = FAT_Size_arr; j > mySuperblock.anzahlBloecke; j--) {
-                if (myFat.fat[j] == 0) { //freier Platz für EOC gefunden (maximal 64 Dateien => 64 EOC's (also reicht das Ende der FAT vollkommen aus)
+                if (myFat.fat[j] == 0) { //freier Platz für EOC gefunden (maximal 64 Dateien => 64 EOC's
+                                                    // (also reicht das Ende der FAT vollkommen aus)
                     myFat.fat[i] = j;
                     myFat.fat[j] = myFat.EOC;
                     newFile.firstBlockInFAT = i;
 
                     //Blockdevice update mit FAT
-                    char puffer_block[BLOCK_SIZE];
-                    uint32_t block = i / BLOCK_SIZE; //Anfang des Blocks als Adresse
-                    memcpy(puffer_block, &myFat.fat + i * block, BLOCK_SIZE);
-                    blockDevice->write(startFAT+ block, puffer_block);
+                    writeBlockOfStructure("fat", i, NULL);
 
                     //Blockdevice update mit EOC in FAT
-                    puffer_block[BLOCK_SIZE];
-                    block = j / BLOCK_SIZE; //Anfang des Blocks als Adresse
-                    memcpy(puffer_block, &myFat.fat + j * block, BLOCK_SIZE);
-                    blockDevice->write(startFAT+ block, puffer_block);
-                    ret=0;
-                }
-            break;
-        }
-    }
+                    writeBlockOfStructure("fat", j, NULL);
 
-    RETURN(ret);
+                    ret = 0;
+                }
+                break;
+            }
+        }
+
+        RETURN(ret);
+    }
 }
 
 /// @brief Delete a file.
@@ -399,10 +391,10 @@ int MyOnDiskFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler,
     filler(buf, "..", NULL, 0); // Parent Directory
 
     if (strcmp(path, "/") == 0)
-        // If the user is trying to show the files/directories of the root directory show the following
+        // If the user is trying to look at the files of the root directory => show the following
     {
         for (int i = 0; i < Root_Size_arr; i++) {
-            if (strcmp(myRoot.root[i].name,"") != 0) {
+            if (strcmp(myRoot.root[i].name, "") != 0) {
                 filler(buf, myRoot.root[i].name, NULL, 0);
             }
         }
@@ -573,6 +565,33 @@ void MyOnDiskFS::fuseDestroy() {
 }
 
 // TODO: [PART 2] You may add your own additional methods here!
+
+/**
+ * Schreibe einen Block auf das BlockDevice mit der geupdateten Struktur/Array
+ * @param structure string als Identifier => "root" || "dmap" || "fat"
+ * @param indexInArray index im jeweiligen Array
+ * @param newFile nur wichtig bei root => geupdatete/neue Inode
+ */
+void MyOnDiskFS::writeBlockOfStructure(char* structure, int indexInArray, struct MyFsFileInfo* newFile)
+{
+    if(strcmp(structure, "root")==0) {
+        char puffer_block[BLOCK_SIZE];
+        memcpy(puffer_block, newFile, sizeof(MyFsFileInfo));
+        blockDevice->write(startROOT + indexInArray, puffer_block);
+    }else if(strcmp(structure, "dmap")==0)
+    {
+        char puffer_block[BLOCK_SIZE];
+        uint32_t block = indexInArray / BLOCK_SIZE; //Anfang des Blocks als Adresse
+        memcpy(puffer_block, &myDmap.dmap + indexInArray * block, BLOCK_SIZE);
+        blockDevice->write(startDMAP + block, puffer_block);
+    }else if(strcmp(structure, "fat")==0)
+    {
+        char puffer_block[BLOCK_SIZE];
+        uint32_t block = indexInArray / BLOCK_SIZE; //Anfang des Blocks als Adresse
+        memcpy(puffer_block, &myFat.fat + indexInArray * block, BLOCK_SIZE);
+        blockDevice->write(startFAT + block, puffer_block);
+    }
+}
 
 // DO NOT EDIT ANYTHING BELOW THIS LINE!!!
 
