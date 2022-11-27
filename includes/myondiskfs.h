@@ -43,7 +43,8 @@ public:
 
     // TODO: Add methods of your file system here
 
-    virtual void writeBlockOfStructure(char *structure, int indexInArray, struct MyFsFileInfo* newFile);
+    virtual void writeBlockOfStructure(char *structure, int indexInArray, struct MyFsFileInfo newFile);
+    virtual void writeBlockOfStructure(char *structure, int indexInArray);
 };
 
 #endif //MYFS_MYONDISKFS_H
