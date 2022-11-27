@@ -161,25 +161,24 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
         {
             myDmap.dmap[i] = 1;
             writeBlockOfStructure("dmap", i, NULL);
+        }
 
-            //vorderen Indexe der FAT für EOC-Indexe nutzen
-            for (int j = FAT_Size_arr; j > mySuperblock.anzahlBloecke; j--) {
-                if (myFat.fat[j] == 0) { //freier Platz für EOC gefunden (maximal 64 Dateien => 64 EOC's
-                                                    // (also reicht das Ende der FAT vollkommen aus)
-                    myFat.fat[i] = j;
-                    myFat.fat[j] = myFat.EOC;
-                    newFile.firstBlockInFAT = i;
+        for (int j = FAT_Size_arr; j > 0; j--) {
+            if (myFat.fat[j] == 0) { //freier Platz für EOC gefunden (maximal 64 Dateien => 64 EOC's
+                // (also reicht das Ende der FAT vollkommen aus)
+                myFat.fat[i] = j;
+                myFat.fat[j] = myFat.EOC;
+                newFile.firstBlockInFAT = i;
 
-                    //Blockdevice update mit FAT
-                    writeBlockOfStructure("fat", i, NULL);
+                //Blockdevice update mit FAT
+                writeBlockOfStructure("fat", i, NULL);
 
-                    //Blockdevice update mit EOC in FAT
-                    writeBlockOfStructure("fat", j, NULL);
+                //Blockdevice update mit EOC in FAT
+                writeBlockOfStructure("fat", j, NULL);
 
-                    ret = 0;
-                }
-                break;
+                ret = 0;
             }
+            break;
         }
 
         RETURN(ret);
@@ -240,8 +239,9 @@ int MyOnDiskFS::fuseGetattr(const char *path, struct stat *statbuf) {
         statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
     } else {
         ret = -ENOENT;
+        MyFsFileInfo current;
         for (int i = 0; i < Root_Size_arr; i++) {
-            MyFsFileInfo current = myRoot.root[i];
+            current = myRoot.root[i];
             if (strcmp(current.name, "") != 0 && strcmp(current.name, path+1) == 0)
             {
                     statbuf->st_mode = current.mode;
@@ -604,20 +604,20 @@ void MyOnDiskFS::fuseDestroy() {
  */
 void MyOnDiskFS::writeBlockOfStructure(char* structure, int indexInArray, struct MyFsFileInfo* newFile)
 {
-    if(strcmp(structure, "root")==0) {
+    if(strcmp(structure, "root") == 0) {
         char puffer_block[BLOCK_SIZE];
         memcpy(puffer_block, newFile, sizeof(MyFsFileInfo));
         blockDevice->write(startROOT + indexInArray, puffer_block);
-    }else if(strcmp(structure, "dmap")==0)
+    }else if(strcmp(structure, "dmap") == 0)
     {
         char puffer_block[BLOCK_SIZE];
-        uint32_t block = indexInArray / BLOCK_SIZE; //Anfang des Blocks als Adresse
+        uint32_t block = indexInArray / BLOCK_SIZE; //Nummer des Blocks, in welchem sich der Wert des Arrays (DMAP) an der Stelle indexInArray befindet
         memcpy(puffer_block, &myDmap.dmap + indexInArray * block, BLOCK_SIZE);
         blockDevice->write(startDMAP + block, puffer_block);
-    }else if(strcmp(structure, "fat")==0)
+    }else if(strcmp(structure, "fat") == 0)
     {
         char puffer_block[BLOCK_SIZE];
-        uint32_t block = indexInArray / (BLOCK_SIZE/4); //Todo: ist das richtig?  512/4  //Anfang des Blocks als Adresse
+        uint32_t block = indexInArray / (BLOCK_SIZE/4);  //Nummer des Blocks, in welchem sich der Wert des Arrays (FAT) an der Stelle indexInArray befindet
         memcpy(puffer_block, &myFat.fat + indexInArray * block, BLOCK_SIZE);
         blockDevice->write(startFAT + block, puffer_block);
     }
