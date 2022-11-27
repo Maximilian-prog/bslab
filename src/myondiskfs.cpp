@@ -53,6 +53,8 @@
 #define endROOT (startDATA - 1)
 #define endDATA blockCount
 
+#define offsetDMAP_array (startDATA) //DMAP kann erst ab dem 1. Datenblock genutzt werden, da davor Superblock etc sind
+
 struct Superblock {
     int fileSystemSize;
     int anzahlBloecke;
@@ -150,8 +152,8 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
         }
     }
 
-    int offset_dmap = startDATA;
-    for (int i = offset_dmap; i < Dmap_Size_arr; i++) {
+
+    for (int i = offsetDMAP_array; i < Dmap_Size_arr; i++) {
         if (myDmap.dmap[i] == 0) // freier Eintrag in DMAP gefunden
         {
             myDmap.dmap[i] = 1;
@@ -223,7 +225,32 @@ int MyOnDiskFS::fuseGetattr(const char *path, struct stat *statbuf) {
 
     // TODO: [PART 2] Implement this!
 
-    RETURN(0);
+    statbuf->st_uid = getuid(); // The owner of the file/directory is the user who mounted the filesystem
+    statbuf->st_gid = getgid(); // The group of the file/directory is the same as the group of the user who mounted the filesystem
+    statbuf->st_atime = time(NULL); // The last "a"ccess of the file/directory is right now
+    statbuf->st_mtime = time(NULL); // The last "m"odification of the file/directory is right now
+
+    int ret = 0;
+
+    if (strcmp(path, "/") == 0) {
+        statbuf->st_mode = S_IFDIR | 0755;
+        statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
+    } else {
+        ret = -ENOENT;
+        for (int i = 0; i < Root_Size_arr; i++) {
+            MyFsFileInfo current = myRoot.root[i];
+            if (strcmp(current.name, "") != 0 && strcmp(current.name, path+1) == 0)
+            {
+                    statbuf->st_mode = current.mode;
+                    statbuf->st_nlink = 1;
+                    statbuf->st_size = current.size;
+                    ret = 0;
+                    break;
+            }
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Change file permissions.
@@ -587,7 +614,7 @@ void MyOnDiskFS::writeBlockOfStructure(char* structure, int indexInArray, struct
     }else if(strcmp(structure, "fat")==0)
     {
         char puffer_block[BLOCK_SIZE];
-        uint32_t block = indexInArray / BLOCK_SIZE; //Anfang des Blocks als Adresse
+        uint32_t block = indexInArray / (BLOCK_SIZE/4); //Todo: ist das richtig?  512/4  //Anfang des Blocks als Adresse
         memcpy(puffer_block, &myFat.fat + indexInArray * block, BLOCK_SIZE);
         blockDevice->write(startFAT + block, puffer_block);
     }
