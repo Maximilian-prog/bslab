@@ -127,6 +127,9 @@ MyOnDiskFS::~MyOnDiskFS() {
 int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
     // TODO: [PART 2] Implement this!
+
+    //Todo: fehler irgendwo, da touch befehl sigsegv fehler gibt
+
     int ret = -EINVAL;
     const int SIZE = BLOCK_SIZE;
 
