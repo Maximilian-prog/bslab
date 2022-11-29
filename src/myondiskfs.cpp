@@ -239,9 +239,11 @@ int MyOnDiskFS::fuseGetattr(const char *path, struct stat *statbuf) {
     int ret = 0;
 
     if (strcmp(path, "/") == 0) {
+        LOG("C");
         statbuf->st_mode = S_IFDIR | 0755;
-        statbuf->st_nlink = 2; // Why "two" hardlinks instead of "one"? The answer is here: http://unix.stackexchange.com/a/101536
+        statbuf->st_nlink = 2;
     } else {
+        LOG("TT");
         ret = -ENOENT;
         for (int i = 0; i < Root_Size_arr; i++) {
             if (strcmp(myRoot.root[i].name, "") != 0)
