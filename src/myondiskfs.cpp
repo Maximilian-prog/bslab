@@ -238,6 +238,9 @@ int MyOnDiskFS::fuseGetattr(const char *path, struct stat *statbuf) {
 
     int ret = 0;
 
+    LOGF("%s",path); //Current Path
+    //TODO: Pfad stimmt nicht, geht nicht beim ersten Mal ausführen in den IF-Part (komischer Pfad)
+
     if (strcmp(path, "/") == 0) {
         LOG("C");
         statbuf->st_mode = S_IFDIR | 0755;
