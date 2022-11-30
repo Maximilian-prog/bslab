@@ -220,13 +220,12 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
                 LOG("After writing dmap to blockdev");
                 while(indexFAT != myFat.EOC)
                 {
-                    LOGF("%d", indexFAT);
-                    LOG("In while schleife");
                     indexFAT = myFat.fat[indexFAT];
-                    myDmap.dmap[indexFAT] = 0;
+                    LOGF("%d", indexFAT);
                     LOG("Before Schreiben vom DMap auf BD");
                     writeBlockOfStructure("dmap", indexFAT);
                     LOG("Danach Schreiben von DMP auf BD");
+                    myDmap.dmap[indexFAT] = 0;
                 }
                 LOG("After Writing DMAP to 0");
                 //name mit 0-en beschreiben
