@@ -29,22 +29,23 @@
 #include "blockdevice.h"
 
 //Sizes in blocks
+#define blockCount 51200 //Benötigt wären eigentlich nur 1024*1024*20 / 512 = 40960 Blöcke, aber für extra Platz wurde BlockCount auf 51200 gesetzt
+
 #define Superblock_Size 1
-#define Dmap_Size_arr 51200
+#define Dmap_Size_arr blockCount
 #define Dmap_Size 100
-#define FAT_Size 800
-#define FAT_Size_arr (800*(BLOCK_SIZE)/4)
+#define FAT_Size 400
+#define FAT_Size_arr blockCount
 #define Root_Size 64
 #define Root_Size_arr 64
 #define Data_Size 0
 
 #define byteToBlock(byte) ((byte)/(BLOCK_SIZE))
-#define blockCount 51200
 #define blockToByte(numberOfBlocks) ((BLOCK_SIZE) * (numberOfBlocks))
 #define startSUPERBLOCK 0
 #define startDMAP 1
 #define startFAT ((Superblock_Size) + (Dmap_Size))
-#define startROOT ((startFAT) + 800)
+#define startROOT ((startFAT) + FAT_Size)
 #define startDATA ((startROOT) + (NUM_DIR_ENTRIES))
 
 #define endSUPERBLOCK 1
@@ -65,12 +66,12 @@ struct Superblock {
 };
 
 struct Dmap {
-    bool *dmap;
+    bool dmap[Dmap_Size_arr];
 };
 
 struct FAT {
     int EOC = 0xFFFFFFFF; //EOC = -1;
-    uint32_t *fat;
+    uint32_t fat[FAT_Size_arr];
 };
 
 struct MyFsFileInfo {
@@ -87,7 +88,7 @@ struct MyFsFileInfo {
 };
 
 struct Root {
-    MyFsFileInfo *root; //Array MyFsFileInfo (max 64)
+    MyFsFileInfo root[Root_Size_arr]; //Array MyFsFileInfo (max 64)
 };
 
 Superblock mySuperblock;
@@ -127,9 +128,6 @@ MyOnDiskFS::~MyOnDiskFS() {
 int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
     // TODO: [PART 2] Implement this!
-
-    //Todo: fehler irgendwo, da touch befehl sigsegv fehler gibt
-
     int ret = -EINVAL;
     const int SIZE = BLOCK_SIZE;
 
@@ -144,11 +142,10 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     newFile.ctime = time(NULL);
     newFile.isOpen = false;
 
-    MyFsFileInfo current; //Schleifenvariable
+
     int indexOfFileInRoot = -1;
     for (int i = 0; i < Root_Size_arr; i++) {
-        current = myRoot.root[i]; //File was ausgelesen wird
-        if (strcmp(current.name, "") == 0) // freier Eintrag in Root gefunden
+        if (myRoot.root[i].name[0] == 0) // freier Eintrag in Root gefunden
         {
             myRoot.root[i] = newFile;
             writeBlockOfStructure("root", i, newFile);
@@ -163,23 +160,29 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
             myDmap.dmap[i] = 1;
             writeBlockOfStructure("dmap", i);
 
-            for (int j = FAT_Size_arr; j >= 0; j--) {
-                if (myFat.fat[j] == 0) { //freier Platz für EOC gefunden (maximal 64 Dateien => 64 EOC's
-                                                    // (also reicht das Ende der FAT vollkommen aus)
+            for (int j =offsetDMAP_array; j < Dmap_Size_arr; j++) {
+                if (myDmap.dmap[j] == 0) { //freier Platz für EOC gefunden (maximal 64 Dateien => 64 EOC's
+                    myDmap.dmap[j]=1;
+                    writeBlockOfStructure("dmap", j);
+
                     myFat.fat[i] = j;
                     myFat.fat[j] = myFat.EOC;
                     myRoot.root[indexOfFileInRoot].firstBlockInFAT = i;
 
+                    LOG("Update Blockdevice with root");
                     //Blockdevice update mit Root
                     writeBlockOfStructure("root", indexOfFileInRoot, myRoot.root[indexOfFileInRoot]);
 
+                    LOG("Update Blockdevice with fat");
                     //Blockdevice update mit FAT
                     writeBlockOfStructure("fat", i);
 
+                    LOG("Update Blockdevice with EOC in FAT");
                     //Blockdevice update mit EOC in FAT
                     writeBlockOfStructure("fat", j);
 
                     ret = 0;
+                    LOG("00000");
                 }
                 break;
             }
@@ -199,8 +202,50 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    int ret = -ENOENT;
 
-    RETURN(0);
+    for (int i = 0; i < Root_Size_arr; i++) {
+       LOG("Before 1 if");
+        if(myRoot.root[i].name[0] != 0)
+        {
+            LOG("Before 2 if");
+            if (strcmp( myRoot.root[i].name, path + 1) == 0)  //fileName == path
+            {
+                LOG("After 2. if");
+                //DMAP Blöcke wieder als freigegeben markieren
+                int indexFAT = myRoot.root[i].firstBlockInFAT;
+                myDmap.dmap[indexFAT]=0;
+                LOG("Before Writing dmap to BLOCKDevice");
+                writeBlockOfStructure("dmap", indexFAT);
+                LOG("After writing dmap to blockdev");
+                while(indexFAT != myFat.EOC)
+                {
+                    LOGF("%d", indexFAT);
+                    LOG("In while schleife");
+                    indexFAT = myFat.fat[indexFAT];
+                    myDmap.dmap[indexFAT] = 0;
+                    LOG("Before Schreiben vom DMap auf BD");
+                    writeBlockOfStructure("dmap", indexFAT);
+                    LOG("Danach Schreiben von DMP auf BD");
+                }
+                LOG("After Writing DMAP to 0");
+                //name mit 0-en beschreiben
+                char puffer[NAME_LENGTH];
+                for(int j = 0; j < NAME_LENGTH; j++)
+                {
+                    puffer[j]=0x00;
+                }
+                strcpy(myRoot.root[i].name, puffer);
+                LOG("vor dem letzten schreiben");
+                writeBlockOfStructure("root", i , myRoot.root[i]);
+                ret = 0;
+                break;
+            }
+        }
+    }
+
+    RETURN(ret);
+
 }
 
 /// @brief Rename a file.
@@ -217,7 +262,21 @@ int MyOnDiskFS::fuseRename(const char *path, const char *newpath) {
 
     // TODO: [PART 2] Implement this!
 
-    RETURN(0);
+    int ret = -ENOENT;
+    const char* oldName = path+1;
+    for (int i = 0; i < Root_Size_arr; i++) {
+        if(myRoot.root[i].name[0]!=0) {
+            if (strcmp(myRoot.root[i].name, oldName) == 0)
+            {
+                strcpy(myRoot.root[i].name, newpath + 1);
+                ret = 0;
+                writeBlockOfStructure("root", i, myRoot.root[i]);
+                break;
+            }
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Get file meta data.
@@ -238,18 +297,13 @@ int MyOnDiskFS::fuseGetattr(const char *path, struct stat *statbuf) {
 
     int ret = 0;
 
-    LOGF("%s",path); //Current Path
-    //TODO: Pfad stimmt nicht, geht nicht beim ersten Mal ausführen in den IF-Part (komischer Pfad)
-
     if (strcmp(path, "/") == 0) {
-        LOG("C");
         statbuf->st_mode = S_IFDIR | 0755;
         statbuf->st_nlink = 2;
     } else {
-        LOG("TT");
         ret = -ENOENT;
         for (int i = 0; i < Root_Size_arr; i++) {
-            if (strcmp(myRoot.root[i].name, "") != 0)
+            if (myRoot.root[i].name[0] != 0)
             {
                 if( strcmp(myRoot.root[i].name, path+1) == 0)
                 {
@@ -277,8 +331,22 @@ int MyOnDiskFS::fuseChmod(const char *path, mode_t mode) {
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    int ret = -ENOENT;
 
-    RETURN(0);
+    for (int i = 0; i < Root_Size_arr; i++) {
+        if(myRoot.root[i].name[0] != 0)
+        {
+            if (strcmp(myRoot.root[i].name, path + 1) == 0)  //fileName == path
+            {
+                myRoot.root[i].mode = mode;
+                ret = 0;
+                writeBlockOfStructure("root", i, myRoot.root[i]);
+                break;
+            }
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Change the owner of a file.
@@ -293,8 +361,23 @@ int MyOnDiskFS::fuseChown(const char *path, uid_t uid, gid_t gid) {
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    int ret = -ENOENT;
 
-    RETURN(0);
+    for (int i = 0; i < Root_Size_arr; i++) {
+        if(myRoot.root[i].name[0]!=0)
+        {
+            if (strcmp(myRoot.root[i].name, path + 1) == 0)  //fileName == path
+            {
+                myRoot.root[i].uid = uid;
+                myRoot.root[i].gid = gid;
+                ret = 0;
+                writeBlockOfStructure("root", i, myRoot.root[i]);
+                break;
+            }
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Open a file.
@@ -434,7 +517,7 @@ int MyOnDiskFS::fuseReaddir(const char *path, void *buf, fuse_fill_dir_t filler,
         // If the user is trying to look at the files of the root directory => show the following
     {
         for (int i = 0; i < Root_Size_arr; i++) {
-            if (strcmp(myRoot.root[i].name, "") != 0) {
+            if (myRoot.root[i].name[0] != 0) {
                 filler(buf, myRoot.root[i].name, NULL, 0);
             }
         }
@@ -476,7 +559,6 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             LOGF("Superblock gelesen %d", mySuperblock.anzahlBloecke);
 
             //read DMAP
-            myDmap.dmap = new bool[Dmap_Size_arr];
             int i = 0;
             char *ptrDMAP = (char *) (myDmap.dmap);
             char dmap_puffer[BLOCK_SIZE];
@@ -487,7 +569,6 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             LOG("DMAP gelesen");
 
             //read FAT
-            myFat.fat = new uint32_t[FAT_Size_arr];
             i = 0;
             char *ptrFAT = (char *) (myFat.fat);
             char fat_puffer[BLOCK_SIZE];
@@ -498,14 +579,11 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
             LOG("FAT gelesen");
 
             //read Root
-            myRoot.root = new MyFsFileInfo[Root_Size_arr];
             i = 0;
             char root_puffer[BLOCK_SIZE];
             for (int blockNo = startROOT; blockNo <= endROOT; blockNo++, i++) {
-                MyFsFileInfo myFsFileInfo;
                 blockDevice->read(blockNo, root_puffer);
-                memcpy(&myFsFileInfo, root_puffer, sizeof(MyFsFileInfo));
-                myRoot.root[i] = myFsFileInfo;
+                memcpy(&myRoot.root[i], root_puffer, sizeof(MyFsFileInfo));
             }
             LOG("Root gelesen");
 
@@ -527,8 +605,7 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 LOGF("startDMAP: %d", startDMAP);
                 mySuperblock.startFat = startFAT;
                 LOGF("startFAT %d", startFAT);
-                //FAT: 800 Da worst-case ein Block pro Datei und der dazugehörige EOC auch ein Block verbraucht
-                //-> 400 (1 Dateiblock + 1 EOC-Block); Annahme: nicht mehr als 400 solcher Dateien
+                //FAT: 51200/128=400
                 mySuperblock.startRoot = startROOT;
                 LOGF("startRoot %d", startROOT);
                 //Root: Jede Inode (MyFsFileInfo) bekommt 1 Block
@@ -536,14 +613,16 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 LOGF("startData %d", startDATA);
 
                 Dmap myDmap;
-                myDmap.dmap = new bool[Dmap_Size_arr];
 
                 FAT myFat;
-                // 800 Blöcke Fat-Größe * 512 Byte Blocksize / 4 Byte Größe Integer
-                myFat.fat = new unsigned int[FAT_Size_arr];
+                // 400 Blöcke Fat-Größe BlockCount / (512 Byte Blocksize / 4 Byte Größe Integer)
 
                 Root myRoot;
-                myRoot.root = new MyFsFileInfo[Root_Size_arr];
+                for (int i = 0; i < Root_Size_arr; i++) {
+                    myRoot.root[i].name[0] = 0;
+                }
+
+                LOGF("%s",myRoot.root[0].name);
 
                 //write Superblock
                 char sb_puffer[BLOCK_SIZE];
@@ -578,9 +657,11 @@ void *MyOnDiskFS::fuseInit(struct fuse_conn_info *conn) {
                 for (int i = 0; i < BLOCK_SIZE; i++) {
                     root_puffer[i] = 0x0000;
                 }
+                int i=0;
                 for (int blockNo = startROOT;
-                     blockNo <= endROOT; blockNo++) {
+                     blockNo <= endROOT; blockNo++, i++) {
                     blockDevice->write(mySuperblock.startRoot + blockNo, root_puffer);
+                    //memcpy(myRoot.root+i, root_puffer, sizeof(MyFsFileInfo));
                 }
 
             }
@@ -612,40 +693,33 @@ void MyOnDiskFS::fuseDestroy() {
  * @param indexInArray index im jeweiligen Array
  * @param newFile nur wichtig bei root => geupdatete/neue Inode
  */
-void MyOnDiskFS::writeBlockOfStructure(char* structure, int indexInArray, struct MyFsFileInfo newFile)
+void MyOnDiskFS::writeBlockOfStructure(char* structure, uint32_t indexInArray, struct MyFsFileInfo newFile)
 {
     if(strcmp(structure, "root")==0) {
         char puffer_block[BLOCK_SIZE];
         memcpy(puffer_block, &newFile, sizeof(MyFsFileInfo));
         blockDevice->write(startROOT + indexInArray, puffer_block);
-    }else if(strcmp(structure, "dmap")==0)
-    {
-        char puffer_block[BLOCK_SIZE];
-        uint32_t block = indexInArray / BLOCK_SIZE;
-        memcpy(puffer_block, &myDmap.dmap + indexInArray * block, BLOCK_SIZE);
-        blockDevice->write(startDMAP + block, puffer_block);
-    }else if(strcmp(structure, "fat")==0)
-    {
-        char puffer_block[BLOCK_SIZE];
-        uint32_t block = indexInArray / (BLOCK_SIZE/4);
-        memcpy(puffer_block, &myFat.fat + indexInArray * block, BLOCK_SIZE);
-        blockDevice->write(startFAT + block, puffer_block);
     }
 }
 
-void MyOnDiskFS::writeBlockOfStructure(char* structure, int indexInArray)
+void MyOnDiskFS::writeBlockOfStructure(char* structure, uint32_t indexInArray)
 {
     if(strcmp(structure, "dmap")==0)
     {
         char puffer_block[BLOCK_SIZE];
+        LOG("Puffer init");
         uint32_t block = indexInArray / BLOCK_SIZE;
-        memcpy(puffer_block, &myDmap.dmap + indexInArray * block, BLOCK_SIZE);
+        LOG("BLOCKSIZE festlegen");
+        memcpy(puffer_block, myDmap.dmap + (block*BLOCK_SIZE), BLOCK_SIZE);
+        LOG("Umkopieren in Pufferblock");
         blockDevice->write(startDMAP + block, puffer_block);
+        LOG("Schreiben in BLockdevice");
     }else if(strcmp(structure, "fat")==0)
     {
+        LOG("FAT structutre");
         char puffer_block[BLOCK_SIZE];
-        uint32_t block = indexInArray / (BLOCK_SIZE/4);
-        memcpy(puffer_block, &myFat.fat + indexInArray * block, BLOCK_SIZE);
+        uint32_t block = indexInArray / (BLOCK_SIZE/sizeof(uint32_t));
+        memcpy(puffer_block, myFat.fat +(block*BLOCK_SIZE), BLOCK_SIZE);
         blockDevice->write(startFAT + block, puffer_block);
     }
 }
