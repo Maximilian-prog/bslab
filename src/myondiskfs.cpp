@@ -214,8 +214,10 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
                 LOG("After 2. if");
                 //DMAP Blöcke wieder als freigegeben markieren
                 int indexFAT = myRoot.root[i].firstBlockInFAT;
+                LOGF("Index von der FAT %d", indexFAT);
+                LOGF("Wert an der Stelle in FAT %d", myFat.fat[indexFAT]);
                 myDmap.dmap[indexFAT]=0;
-                LOG("Before Writing dmap to BLOCKDevice");
+                LOG("Before writing dmap to BLOCKDevice");
                 writeBlockOfStructure("dmap", indexFAT);
                 LOG("After writing dmap to blockdev");
                 while(indexFAT != myFat.EOC)
