@@ -33,17 +33,17 @@
 
 #define Superblock_Size 1
 #define Dmap_Size_arr blockCount
-#define Dmap_Size 100
-#define FAT_Size 400
+#define Dmap_Size 100 //51200 / 512 => 100
+#define FAT_Size 400 // 51200 / (512/4) => 400
 #define FAT_Size_arr blockCount
 #define Root_Size 64
-#define Root_Size_arr 64
+#define Root_Size_arr NUM_DIR_ENTRIES
 #define Data_Size 0
 
 #define byteToBlock(byte) ((byte)/(BLOCK_SIZE))
 #define blockToByte(numberOfBlocks) ((BLOCK_SIZE) * (numberOfBlocks))
 #define startSUPERBLOCK 0
-#define startDMAP 1
+#define startDMAP startSUPERBLOCK + 1
 #define startFAT ((Superblock_Size) + (Dmap_Size))
 #define startROOT ((startFAT) + FAT_Size)
 #define startDATA ((startROOT) + (NUM_DIR_ENTRIES))
@@ -160,11 +160,12 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
             myDmap.dmap[i] = 1;
             writeBlockOfStructure("dmap", i);
 
-            for (int j =offsetDMAP_array; j < Dmap_Size_arr; j++) {
+            for (int j = offsetDMAP_array; j < Dmap_Size_arr; j++) { //Suche nach EOC-Platz
                 if (myDmap.dmap[j] == 0) { //freier Platz für EOC gefunden (maximal 64 Dateien => 64 EOC's
-                    myDmap.dmap[j]=1;
+                    myDmap.dmap[j] = 1;
                     writeBlockOfStructure("dmap", j);
 
+                    //FAT aktualisieren
                     myFat.fat[i] = j;
                     myFat.fat[j] = myFat.EOC;
                     myRoot.root[indexOfFileInRoot].firstBlockInFAT = i;
@@ -182,14 +183,13 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
                     writeBlockOfStructure("fat", j);
 
                     ret = 0;
-                    LOG("00000");
+                    RETURN(ret);
                 }
-                break;
             }
         }
-
-        RETURN(ret);
     }
+
+    RETURN(ret);
 }
 
 /// @brief Delete a file.
@@ -240,6 +240,7 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
                 LOG("vor dem letzten schreiben");
                 writeBlockOfStructure("root", i , myRoot.root[i]);
                 ret = 0;
+                RETURN(ret);
                 break;
             }
         }
@@ -708,19 +709,14 @@ void MyOnDiskFS::writeBlockOfStructure(char* structure, uint32_t indexInArray)
     if(strcmp(structure, "dmap")==0)
     {
         char puffer_block[BLOCK_SIZE];
-        LOG("Puffer init");
         uint32_t block = indexInArray / BLOCK_SIZE;
-        LOG("BLOCKSIZE festlegen");
         memcpy(puffer_block, myDmap.dmap + (block*BLOCK_SIZE), BLOCK_SIZE);
-        LOG("Umkopieren in Pufferblock");
         blockDevice->write(startDMAP + block, puffer_block);
-        LOG("Schreiben in BLockdevice");
     }else if(strcmp(structure, "fat")==0)
     {
-        LOG("FAT structutre");
         char puffer_block[BLOCK_SIZE];
-        uint32_t block = indexInArray / (BLOCK_SIZE/sizeof(uint32_t));
-        memcpy(puffer_block, myFat.fat +(block*BLOCK_SIZE), BLOCK_SIZE);
+        uint32_t block = indexInArray / (BLOCK_SIZE/4); //sizeof(uint32_t) => 4 bytes
+        memcpy(puffer_block, myFat.fat +(block*(BLOCK_SIZE/4)), BLOCK_SIZE);
         blockDevice->write(startFAT + block, puffer_block);
     }
 }
