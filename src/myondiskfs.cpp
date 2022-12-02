@@ -205,31 +205,19 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
     int ret = -ENOENT;
 
     for (int i = 0; i < Root_Size_arr; i++) {
-       LOG("Before 1 if");
         if(myRoot.root[i].name[0] != 0)
         {
-            LOG("Before 2 if");
             if (strcmp( myRoot.root[i].name, path + 1) == 0)  //fileName == path
             {
-                LOG("After 2. if");
                 //DMAP Blöcke wieder als freigegeben markieren
                 int indexFAT = myRoot.root[i].firstBlockInFAT;
-                LOGF("Index von der FAT %d", indexFAT);
-                LOGF("Wert an der Stelle in FAT %d", myFat.fat[indexFAT]);
-                myDmap.dmap[indexFAT]=0;
-                LOG("Before writing dmap to BLOCKDevice");
-                writeBlockOfStructure("dmap", indexFAT);
-                LOG("After writing dmap to blockdev");
-                while(indexFAT != myFat.EOC)
+                while(indexFAT >= 0)
                 {
-                    indexFAT = myFat.fat[indexFAT];
-                    LOGF("%d", indexFAT);
-                    LOG("Before Schreiben vom DMap auf BD");
-                    writeBlockOfStructure("dmap", indexFAT);
-                    LOG("Danach Schreiben von DMP auf BD");
+                    if(indexFAT==myFat.EOC) break;
                     myDmap.dmap[indexFAT] = 0;
+                    writeBlockOfStructure("dmap", indexFAT);
+                    indexFAT = myFat.fat[indexFAT];
                 }
-                LOG("After Writing DMAP to 0");
                 //name mit 0-en beschreiben
                 char puffer[NAME_LENGTH];
                 for(int j = 0; j < NAME_LENGTH; j++)
@@ -237,11 +225,9 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
                     puffer[j]=0x00;
                 }
                 strcpy(myRoot.root[i].name, puffer);
-                LOG("vor dem letzten schreiben");
                 writeBlockOfStructure("root", i , myRoot.root[i]);
                 ret = 0;
                 RETURN(ret);
-                break;
             }
         }
     }
