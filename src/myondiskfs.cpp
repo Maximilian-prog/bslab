@@ -392,6 +392,7 @@ int MyOnDiskFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
                 memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE);
                 openfiles[i].blockNo = myRoot.root[i].firstBlockInFAT;
                 ret = 0;
+                break;
             }
         }
     }
@@ -507,7 +508,6 @@ int MyOnDiskFS::fuseRelease(const char *path, struct fuse_file_info *fileInfo) {
 
     int i = fileInfo->fh;
 
-    free(openfiles[i].puffer);
     openfiles[i].blockNo = -1;
 
     ret = 0;
