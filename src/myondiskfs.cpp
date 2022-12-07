@@ -447,32 +447,51 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
 
     int ret = -ENOENT;
 
-    for (int i = 0; i < Root_Size_arr; i++) {
-        if (myRoot.root[i].name[0] != 0) {
-            if (strcmp(myRoot.root[i].name, path + 1) == 0)  //fileName == path
-            {
-                //Suche Block
-                int blockInFile = offset / BLOCK_SIZE;
-                //Fat dursuchen
-                int blockIndex = myFat.fat[myRoot.root[i].firstBlockInFAT];
-                for (int j = 0; j < blockInFile; j++) {
-                    blockIndex = myFat.fat[blockIndex];
-                }
-                int offsetInBlock = offset % BLOCK_SIZE;
+    int i = fileInfo->fh;
+    //Suche Block
+    int blockInFile = offset / BLOCK_SIZE;
+    //Fat dursuchen
+    int blockIndex = myFat.fat[myRoot.root[i].firstBlockInFAT];
+    for (int j = 0; j < blockInFile; j++) {
+        blockIndex = myFat.fat[blockIndex];
+    }
+    char puffer[BLOCK_SIZE];
+    if (openfiles[i].blockNo == blockIndex) {
+        memcpy(puffer, openfiles[i].puffer, BLOCK_SIZE);
+    } else {
+        blockDevice->read(blockIndex, puffer);
+    }
+    int offsetInBlock = offset % BLOCK_SIZE;
+    memcpy(&puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
+    blockDevice->write(blockIndex, puffer);
+    if (sizeof(buf) <= BLOCK_SIZE - offsetInBlock) {
+        RETURN(size);
+    }
+    //Buffer passt nicht mehr in den einen Block
+    int anzahlBlöcke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
+    int previousFatToNewFat = blockIndex; // Point of seperating Fat -> going from last block written to new index in fat
+    for (int i = 0; i < anzahlBlöcke; i++) {
+        for (int j = offsetDMAP_array; j < Dmap_Size_arr; j++) {
+            if (myDmap.dmap[j] == 0) {
+                myDmap.dmap[j] = 1;
+                writeBlockOfStructure("dmap", j);
+                myFat.fat[previousFatToNewFat] = j;
+                writeBlockOfStructure("fat", previousFatToNewFat);
+                //Daten schreiben
                 char puffer[BLOCK_SIZE];
-                if (openfiles[fileInfo->fh].blockNo == blockIndex) {
-                    memcpy(puffer, openfiles[fileInfo->fh].puffer, BLOCK_SIZE);
-                } else blockDevice->read(blockIndex, puffer);
-                if(sizeof(buf) < BLOCK_SIZE-offset) //Bytes passen noch in den gepufferten Block
-                {
-                    memcpy(puffer, )
-                }
-                ret = size;
+                memcpy(puffer, &buf + i * BLOCK_SIZE, BLOCK_SIZE);
+                blockDevice->write(j, puffer);
+                break;
             }
         }
     }
+    myFat.fat[previousFatToNewFat] = blockIndex;
+
+    ret = size;
+
     RETURN(ret);
 }
+
 
 /// @brief Close a file.
 ///
