@@ -91,6 +91,13 @@ struct Root {
     MyFsFileInfo root[Root_Size_arr]; //Array MyFsFileInfo (max 64)
 };
 
+struct OpenFile {
+    char puffer[BLOCK_SIZE];
+    int blockNo;
+};
+
+OpenFile openfiles[NUM_OPEN_FILES];
+
 Superblock mySuperblock;
 Dmap myDmap;
 FAT myFat;
@@ -381,7 +388,23 @@ int MyOnDiskFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
 
     // TODO: [PART 2] Implement this!
 
-    RETURN(0);
+    int ret = -ENOENT;
+
+    for (int i = 0; i < Root_Size_arr; i++) {
+        if (myRoot.root[i].name[0] != 0) {
+            if (strcmp(myRoot.root[i].name, path + 1) == 0)  //fileName == path
+            {
+                fileInfo->fh = i;
+                char puffer[BLOCK_SIZE];
+                blockDevice->read(myRoot.root[i].firstBlockInFAT, puffer);
+                memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE);
+                openfiles[i].blockNo = myRoot.root[i].firstBlockInFAT;
+                ret = 0;
+            }
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Read from a file.
@@ -430,7 +453,33 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
 
     // TODO: [PART 2] Implement this!
 
-    RETURN(0);
+    int ret = -ENOENT;
+
+    for (int i = 0; i < Root_Size_arr; i++) {
+        if (myRoot.root[i].name[0] != 0) {
+            if (strcmp(myRoot.root[i].name, path + 1) == 0)  //fileName == path
+            {
+                //Suche Block
+                int blockInFile = offset / BLOCK_SIZE;
+                //Fat dursuchen
+                int blockIndex = myFat.fat[myRoot.root[i].firstBlockInFAT];
+                for (int j = 0; j < blockInFile; j++) {
+                    blockIndex = myFat.fat[blockIndex];
+                }
+                int offsetInBlock = offset % BLOCK_SIZE;
+                char puffer[BLOCK_SIZE];
+                if (openfiles[fileInfo->fh].blockNo == blockIndex) {
+                    memcpy(puffer, openfiles[fileInfo->fh].puffer, BLOCK_SIZE);
+                } else blockDevice->read(blockIndex, puffer);
+                if(sizeof(buf) < BLOCK_SIZE-offset) //Bytes passen noch in den gepufferten Block
+                {
+                    memcpy(puffer, )
+                }
+                ret = size;
+            }
+        }
+    }
+    RETURN(ret);
 }
 
 /// @brief Close a file.
@@ -443,7 +492,17 @@ int MyOnDiskFS::fuseRelease(const char *path, struct fuse_file_info *fileInfo) {
 
     // TODO: [PART 2] Implement this!
 
-    RETURN(0);
+    int ret = -ENOENT;
+
+    int i = fileInfo->fh;
+
+    free(openfiles[i].puffer);
+    openfiles[i].blockNo = -1;
+
+    ret = 0;
+
+    RETURN(ret);
+
 }
 
 /// @brief Truncate a file.
