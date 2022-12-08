@@ -381,13 +381,11 @@ int MyOnDiskFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     // TODO: [PART 2] Implement this!
 
     int ret = -ENOENT;
-    LOG("FUSEOPEN benutzt?");
     for (int i = 0; i < Root_Size_arr; i++) {
         if (myRoot.root[i].name[0] != 0) {
             if (strcmp(myRoot.root[i].name, path + 1) == 0)  //fileName == path
             {
                 fileInfo->fh = i;
-                LOGF("%d", i);
                 char puffer[BLOCK_SIZE];
                 blockDevice->read(myRoot.root[i].firstBlockInFAT, puffer);
                 memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE);
@@ -492,6 +490,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     int ret = -ENOENT;
 
     int indexInRoot = fileInfo->fh;
+
     //Suche Block
     int blockInFile = offset / BLOCK_SIZE;
     //Fat dursuchen
@@ -553,7 +552,8 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     LOG("Ende");
 
     //Update size in Inode
-    myRoot.root[indexInRoot].size += anzahlBloecke * BLOCK_SIZE;
+    int prevSize = myRoot.root[indexInRoot].size;
+    myRoot.root[indexInRoot].size = prevSize + anzahlBloecke * BLOCK_SIZE;
 
     ret = size;
 
