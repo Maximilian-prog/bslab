@@ -495,21 +495,21 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     int blockInFile = offset / BLOCK_SIZE;
     //Fat dursuchen
     LOGF("%d Index in Root (FH) %s", indexInRoot, myRoot.root[indexInRoot].name);
-    int blockIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
-    LOG("Nach zuweisen des blockIndex");
+    int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
+    LOG("Nach zuweisen des FatIndex");
     for (int j = 0; j < blockInFile; j++) {
-        blockIndex = myFat.fat[blockIndex];
+        FatIndex = myFat.fat[FatIndex];
     }
-    LOGF("nach Blockindex suchen in FAT %d", blockIndex);
+    LOGF("nach Blockindex suchen in FAT %d", FatIndex);
     char puffer[BLOCK_SIZE];
-    if (openfiles[indexInRoot].blockNo == blockIndex) {
+    if (openfiles[indexInRoot].blockNo == FatIndex) {
         LOG("vor dem Schreiben des Puffers");
         memcpy(puffer, openfiles[indexInRoot].puffer, BLOCK_SIZE);
         LOG("nach dem Schreiben des Puffers");
     } else {
         LOG("openfiles puffer nicht benutzt");
-        blockDevice->read(blockIndex, puffer);
-        openfiles[indexInRoot].blockNo = blockIndex;
+        blockDevice->read(FatIndex, puffer);
+        openfiles[indexInRoot].blockNo = FatIndex;
         memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
     }
     LOG("Nach dem openfiles-check");
@@ -517,15 +517,14 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     LOGF("modulo rechnung: %d", offsetInBlock);
     memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     LOG("MEMCPY -> in Puffer");
-    blockDevice->write(blockIndex, puffer);
-    //if (sizeof(buf) <= BLOCK_SIZE - offsetInBlock) {
-    //  RETURN(size);
-    //}
+    blockDevice->write(FatIndex, puffer);
     //Buffer passt nicht mehr in den einen Block
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
-    int previousFatToNewFat = blockIndex; // Point of seperating Fat -> going from last block written to new index in fat
+    LOGF("Anzahl bloecke: %d", anzahlBloecke);
+    int previousFatToNewFat = FatIndex; // Point of seperating Fat -> going from last block written to new index in fat
+    int backToFat = myFat.fat[FatIndex];
     LOG("Bevor 1. For Schleife");
-    for (int i = 0; i < anzahlBloecke; i++) {
+    for (int i = 0; i <= anzahlBloecke; i++) {
         LOG("Bevor 2. For Schleife");
         for (int j = offsetDMAP_array; j < Dmap_Size_arr; j++) {
             if (myDmap.dmap[j] == 0) {
@@ -533,9 +532,10 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
                 myDmap.dmap[j] = 1;
                 writeBlockOfStructure("dmap", j);
                 LOG("Nach dem Schreiben des Blocks (DMAP auf 1)");
-                LOGF("Inhalt der FAT : %d", j);
+                LOGF("Index der FAT : %d", previousFatToNewFat);
                 myFat.fat[previousFatToNewFat] = j;
-                LOGF("%d", previousFatToNewFat);
+                previousFatToNewFat = j;
+                LOGF("Inhalt fat : %d", j);
                 writeBlockOfStructure("fat", previousFatToNewFat);
                 LOG("Nach dem Schreiben des Blocks (FAT seperating)");
                 //Daten schreiben
@@ -544,14 +544,17 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
                 memcpy(puffer, buf + i * BLOCK_SIZE, BLOCK_SIZE);
                 blockDevice->write(j, puffer);
                 LOG("Nach Daten schreiben");
-                myFat.fat[previousFatToNewFat] = blockIndex;
                 break;
             }
         }
     }
+    if (anzahlBloecke >= 0) {
+        myFat.fat[FatIndex] = backToFat;
+        LOGF("previousFatToNewFat %d   <-  FatIndex %d", backToFat, FatIndex);
+    }
     LOG("Ende");
 
-    //Update size in Inode
+    //Update size in Inode Todo: size ändern (Size wird bisher nur aufaddiert, bei jedem Mal schreiben) + blockdevice root überschreiben
     int prevSize = myRoot.root[indexInRoot].size;
     myRoot.root[indexInRoot].size = prevSize + size;
 
