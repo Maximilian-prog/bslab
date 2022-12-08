@@ -422,7 +422,49 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
 
     // TODO: [PART 2] Implement this!
 
-    RETURN(0);
+    int ret = -ENOENT;
+    int bytesRead=0;
+
+    int i = fileInfo->fh;
+    //Suche Block
+    int blockInFile = offset / BLOCK_SIZE;
+    //Fat dursuchen
+    int blockIndex = myFat.fat[myRoot.root[i].firstBlockInFAT];
+    for (int j = 0; j < blockInFile; j++) {
+        blockIndex = myFat.fat[blockIndex];
+    }
+    char puffer[BLOCK_SIZE];
+    if (openfiles[i].blockNo == blockIndex) {
+        memcpy(puffer, openfiles[i].puffer, BLOCK_SIZE);
+    } else {
+        blockDevice->read(blockIndex, puffer);
+        openfiles[i].blockNo = blockIndex;
+        memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE);
+    }
+    int offsetInBlock = offset % BLOCK_SIZE;
+    LOGF("modulo rechnung: %d", offsetInBlock);
+    memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
+    bytesRead += BLOCK_SIZE - offsetInBlock;
+
+
+    //FAT durchgehen bei jedem Block -> in den Puffer (buf) schreiben
+    int index = myRoot.root[i].firstBlockInFAT;
+    int count = 0;
+    while (index != myFat.EOC) {
+        LOGF("%d",index);
+        char puffer[BLOCK_SIZE];
+        blockDevice->read(index, puffer);
+        openfiles[i].blockNo=index;
+        memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE );
+        memcpy(buf + count * BLOCK_SIZE + BLOCK_SIZE - offset, puffer, BLOCK_SIZE);
+        index = myFat.fat[index];
+        bytesRead += BLOCK_SIZE;
+    }
+
+    ret = bytesRead;
+
+    RETURN(ret);
+
 }
 
 /// @brief Write to a file.
@@ -448,11 +490,13 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
 
     int ret = -ENOENT;
 
-    int i = fileInfo->fh;
+    int indexInRoot = fileInfo->fh;
     //Suche Block
     int blockInFile = offset / BLOCK_SIZE;
     //Fat dursuchen
-    int blockIndex = myFat.fat[myRoot.root[i].firstBlockInFAT];
+    LOGF("%d Index in Root (FH) %s", indexInRoot, myRoot.root[indexInRoot].name);
+    int blockIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
+    LOG("Nach zuweisen des blockIndex");
     for (int j = 0; j < blockInFile; j++) {
         blockIndex = myFat.fat[blockIndex];
     }
@@ -461,32 +505,46 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
         memcpy(puffer, openfiles[i].puffer, BLOCK_SIZE);
     } else {
         blockDevice->read(blockIndex, puffer);
+        openfiles[indexInRoot].blockNo = blockIndex;
+        memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
     }
+    LOG("Nach dem openfiles-check");
     int offsetInBlock = offset % BLOCK_SIZE;
-    memcpy(&puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
+    LOGF("modulo rechnung: %d", offsetInBlock);
+    memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
+    LOG("MEMCPY -> in Puffer");
     blockDevice->write(blockIndex, puffer);
     if (sizeof(buf) <= BLOCK_SIZE - offsetInBlock) {
         RETURN(size);
     }
     //Buffer passt nicht mehr in den einen Block
-    int anzahlBlöcke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
+    int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
     int previousFatToNewFat = blockIndex; // Point of seperating Fat -> going from last block written to new index in fat
-    for (int i = 0; i < anzahlBlöcke; i++) {
+    LOG("Bevor 1. For Schleife");
+    for (int i = 0; i < anzahlBloecke; i++) {
+        LOG("Bevor 2. For Schleife");
         for (int j = offsetDMAP_array; j < Dmap_Size_arr; j++) {
             if (myDmap.dmap[j] == 0) {
+                LOGF("DMAP stelle gefunden : %d", j);
                 myDmap.dmap[j] = 1;
                 writeBlockOfStructure("dmap", j);
                 myFat.fat[previousFatToNewFat] = j;
                 writeBlockOfStructure("fat", previousFatToNewFat);
                 //Daten schreiben
+                LOG("Before Daten schreiben");
                 char puffer[BLOCK_SIZE];
-                memcpy(puffer, &buf + i * BLOCK_SIZE, BLOCK_SIZE);
+                memcpy(puffer, buf + i * BLOCK_SIZE, BLOCK_SIZE);
                 blockDevice->write(j, puffer);
+                LOG("Nach Daten schreiben");
+                myFat.fat[previousFatToNewFat] = blockIndex;
                 break;
             }
         }
     }
-    myFat.fat[previousFatToNewFat] = blockIndex;
+    LOG("Ende");
+
+    //Update size in Inode
+    myRoot.root[indexInRoot].size += anzahlBloecke * BLOCK_SIZE;
 
     ret = size;
 
