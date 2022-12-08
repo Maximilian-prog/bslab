@@ -443,8 +443,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
         memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
     }
     int offsetInBlock = offset % BLOCK_SIZE;
-    LOGF("modulo rechnung: %d", offsetInBlock);
-    memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
+    memcpy(buf, puffer + BLOCK_SIZE - offsetInBlock, BLOCK_SIZE - offsetInBlock);
     bytesRead += BLOCK_SIZE - offsetInBlock;
     LOGF("Buffer %s", buf);
     LOGF("buffer hex %A", buf);
@@ -454,6 +453,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     while (index != myFat.EOC) {
         LOG("1");
         char puffer[BLOCK_SIZE];
+        LOG("2");
         blockDevice->read(index, puffer);
         LOG("3");
         openfiles[indexInRoot].blockNo = index;
@@ -559,11 +559,11 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     }
     if (anzahlBloecke >= 0) {
         myFat.fat[previousFatToNewFat] = backToFat;
-        }
+    }
 
     int prevSize = myRoot.root[indexInRoot].size;
     myRoot.root[indexInRoot].size = prevSize + size;
-    if(prevSize > size) {
+    if (prevSize > size) {
         myRoot.root[indexInRoot].size = size;
     }
 
