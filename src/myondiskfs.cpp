@@ -420,7 +420,52 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    int ret = -ENOENT;
 
+    int indexInRoot = fileInfo->fh;
+    int bytesRead=0;
+
+    //Suche Block
+    int blockInFile = offset / BLOCK_SIZE;
+    //Fat dursuchen
+    int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
+    for (int j = 0; j < blockInFile; j++) {
+        FatIndex = myFat.fat[FatIndex];
+    }
+
+    char puffer[BLOCK_SIZE];
+    if (openfiles[indexInRoot].blockNo == FatIndex) {
+        memcpy(puffer, openfiles[indexInRoot].puffer, BLOCK_SIZE);
+    } else {
+        blockDevice->read(FatIndex, puffer);
+        openfiles[indexInRoot].blockNo = FatIndex;
+        memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
+    }
+    int offsetInBlock = offset % BLOCK_SIZE;
+    memcpy(buf, puffer + BLOCK_SIZE - offsetInBlock, BLOCK_SIZE - offsetInBlock);
+    bytesRead+=BLOCK_SIZE-offsetInBlock;
+    int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock)); // Point of seperating Fat -> going from last block written to new index in fat
+    for (int i = 0; i <= anzahlBloecke; i++) {
+        FatIndex=myFat.fat[FatIndex];
+        if(FatIndex == myFat.EOC){
+            break;
+        }
+        char puffer[BLOCK_SIZE];
+        blockDevice->read(FatIndex, puffer);
+        if (size-bytesRead<BLOCK_SIZE) { //übirg zu lesenen Bytes sind < 1 Block
+            memcpy( buf+bytesRead, puffer, size-bytesRead);
+            bytesRead+=size-bytesRead;
+        }else{
+            memcpy(buf+bytesRead, puffer,BLOCK_SIZE);
+            bytesRead+=BLOCK_SIZE;
+        }
+    }
+
+    ret = bytesRead;
+
+    RETURN(ret);
+
+/*
     int ret = -ENOENT;
     int bytesRead = 0;
 
@@ -485,7 +530,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     ret = bytesRead;
 
     RETURN(ret);
-
+*/
 }
 
 /// @brief Write to a file.
