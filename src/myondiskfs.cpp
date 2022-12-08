@@ -498,13 +498,11 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     for (int j = 0; j < blockInFile; j++) {
         FatIndex = myFat.fat[FatIndex];
     }
-    LOGF("nach Blockindex suchen in FAT %d", FatIndex);
+
     char puffer[BLOCK_SIZE];
     if (openfiles[indexInRoot].blockNo == FatIndex) {
-        LOG("vor dem Schreiben des Puffers");
         memcpy(puffer, openfiles[indexInRoot].puffer, BLOCK_SIZE);
     } else {
-        LOG("openfiles puffer nicht benutzt");
         blockDevice->read(FatIndex, puffer);
         openfiles[indexInRoot].blockNo = FatIndex;
         memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
