@@ -381,12 +381,13 @@ int MyOnDiskFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
     // TODO: [PART 2] Implement this!
 
     int ret = -ENOENT;
-
+    LOG("FUSEOPEN benutzt?");
     for (int i = 0; i < Root_Size_arr; i++) {
         if (myRoot.root[i].name[0] != 0) {
             if (strcmp(myRoot.root[i].name, path + 1) == 0)  //fileName == path
             {
                 fileInfo->fh = i;
+                LOGF("%d", i);
                 char puffer[BLOCK_SIZE];
                 blockDevice->read(myRoot.root[i].firstBlockInFAT, puffer);
                 memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE);
@@ -402,7 +403,7 @@ int MyOnDiskFS::fuseOpen(const char *path, struct fuse_file_info *fileInfo) {
 
 /// @brief Read from a file.
 ///
-/// Read a given number of bytes from a file starting form a given position.
+/// Read a given number of bytes from a file starting from a given position.
 /// You do not have to check file permissions, but can assume that it is always ok to access the file.
 /// Note that the file content is an array of bytes, not a string. I.e., it is not (!) necessarily terminated by '\0'
 /// and may contain an arbitrary number of '\0'at any position. Thus, you should not use strlen(), strcpy(), strcmp(),
@@ -500,10 +501,14 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     for (int j = 0; j < blockInFile; j++) {
         blockIndex = myFat.fat[blockIndex];
     }
+    LOGF("nach Blockindex suchen in FAT %d", blockIndex);
     char puffer[BLOCK_SIZE];
-    if (openfiles[i].blockNo == blockIndex) {
-        memcpy(puffer, openfiles[i].puffer, BLOCK_SIZE);
+    if (openfiles[indexInRoot].blockNo == blockIndex) {
+        LOG("vor dem Schreiben des Puffers");
+        memcpy(puffer, openfiles[indexInRoot].puffer, BLOCK_SIZE);
+        LOG("nach dem Schreiben des Puffers");
     } else {
+        LOG("openfiles puffer nicht benutzt");
         blockDevice->read(blockIndex, puffer);
         openfiles[indexInRoot].blockNo = blockIndex;
         memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
@@ -514,9 +519,9 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     LOG("MEMCPY -> in Puffer");
     blockDevice->write(blockIndex, puffer);
-    if (sizeof(buf) <= BLOCK_SIZE - offsetInBlock) {
-        RETURN(size);
-    }
+    //if (sizeof(buf) <= BLOCK_SIZE - offsetInBlock) {
+    //  RETURN(size);
+    //}
     //Buffer passt nicht mehr in den einen Block
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
     int previousFatToNewFat = blockIndex; // Point of seperating Fat -> going from last block written to new index in fat
@@ -528,8 +533,12 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
                 LOGF("DMAP stelle gefunden : %d", j);
                 myDmap.dmap[j] = 1;
                 writeBlockOfStructure("dmap", j);
+                LOG("Nach dem Schreiben des Blocks (DMAP auf 1)");
+                LOGF("Inhalt der FAT : %d", j);
                 myFat.fat[previousFatToNewFat] = j;
+                LOGF("%d", previousFatToNewFat);
                 writeBlockOfStructure("fat", previousFatToNewFat);
+                LOG("Nach dem Schreiben des Blocks (FAT seperating)");
                 //Daten schreiben
                 LOG("Before Daten schreiben");
                 char puffer[BLOCK_SIZE];
