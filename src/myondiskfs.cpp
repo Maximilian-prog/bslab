@@ -422,7 +422,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     // TODO: [PART 2] Implement this!
 
     int ret = -ENOENT;
-    int bytesRead=0;
+    int bytesRead = 0;
 
     int i = fileInfo->fh;
     //Suche Block
@@ -450,11 +450,11 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     int index = myRoot.root[i].firstBlockInFAT;
     int count = 0;
     while (index != myFat.EOC) {
-        LOGF("%d",index);
+        LOGF("%d", index);
         char puffer[BLOCK_SIZE];
         blockDevice->read(index, puffer);
-        openfiles[i].blockNo=index;
-        memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE );
+        openfiles[i].blockNo = index;
+        memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE);
         memcpy(buf + count * BLOCK_SIZE + BLOCK_SIZE - offset, puffer, BLOCK_SIZE);
         index = myFat.fat[index];
         bytesRead += BLOCK_SIZE;
