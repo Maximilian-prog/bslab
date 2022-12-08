@@ -494,9 +494,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     //Suche Block
     int blockInFile = offset / BLOCK_SIZE;
     //Fat dursuchen
-    LOGF("%d Index in Root (FH) %s", indexInRoot, myRoot.root[indexInRoot].name);
     int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
-    LOG("Nach zuweisen des FatIndex");
     for (int j = 0; j < blockInFile; j++) {
         FatIndex = myFat.fat[FatIndex];
     }
@@ -505,27 +503,21 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     if (openfiles[indexInRoot].blockNo == FatIndex) {
         LOG("vor dem Schreiben des Puffers");
         memcpy(puffer, openfiles[indexInRoot].puffer, BLOCK_SIZE);
-        LOG("nach dem Schreiben des Puffers");
     } else {
         LOG("openfiles puffer nicht benutzt");
         blockDevice->read(FatIndex, puffer);
         openfiles[indexInRoot].blockNo = FatIndex;
         memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
     }
-    LOG("Nach dem openfiles-check");
     int offsetInBlock = offset % BLOCK_SIZE;
-    LOGF("modulo rechnung: %d", offsetInBlock);
     memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     blockDevice->write(FatIndex, puffer);
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
     int previousFatToNewFat = FatIndex; // Point of seperating Fat -> going from last block written to new index in fat
     int backToFat = myFat.fat[FatIndex];
-    LOG("Bevor 1. For Schleife");
     for (int i = 0; i <= anzahlBloecke; i++) {
-        LOG("Bevor 2. For Schleife");
         for (int j = offsetDMAP_array; j < Dmap_Size_arr; j++) {
             if (myDmap.dmap[j] == 0) {
-                LOGF("DMAP stelle gefunden : %d", j);
                 myDmap.dmap[j] = 1;
                 writeBlockOfStructure("dmap", j);
                 LOG("Nach dem Schreiben des Blocks (DMAP auf 1)");
@@ -551,6 +543,11 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
 
     int prevSize = myRoot.root[indexInRoot].size;
     myRoot.root[indexInRoot].size = prevSize + size;
+    if(prevSize > size) {
+        myRoot.root[indexInRoot].size = size;
+    }
+
+    writeBlockOfStructure("root", indexInRoot, myRoot.root[indexInRoot]);
 
     ret = size;
 
