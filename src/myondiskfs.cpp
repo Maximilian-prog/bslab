@@ -217,8 +217,8 @@ int MyOnDiskFS::fuseUnlink(const char *path) {
             {
                 //DMAP Blöcke wieder als freigegeben markieren
                 int indexFAT = myRoot.root[i].firstBlockInFAT;
-                while (indexFAT >= 0) {
-                    if (indexFAT == myFat.EOC) break;
+                while (indexFAT != myFat.EOC) {
+                    LOGF("Indexfat %d", indexFAT);
                     myDmap.dmap[indexFAT] = 0;
                     writeBlockOfStructure("dmap", indexFAT);
                     indexFAT = myFat.fat[indexFAT];
@@ -450,7 +450,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     int index = myRoot.root[i].firstBlockInFAT;
     int count = 0;
     while (index != myFat.EOC) {
-        LOGF("%d", index);
+        LOGF("index %d", index);
         char puffer[BLOCK_SIZE];
         blockDevice->read(index, puffer);
         openfiles[i].blockNo = index;
@@ -516,11 +516,8 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     int offsetInBlock = offset % BLOCK_SIZE;
     LOGF("modulo rechnung: %d", offsetInBlock);
     memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
-    LOG("MEMCPY -> in Puffer");
     blockDevice->write(FatIndex, puffer);
-    //Buffer passt nicht mehr in den einen Block
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
-    LOGF("Anzahl bloecke: %d", anzahlBloecke);
     int previousFatToNewFat = FatIndex; // Point of seperating Fat -> going from last block written to new index in fat
     int backToFat = myFat.fat[FatIndex];
     LOG("Bevor 1. For Schleife");
@@ -549,12 +546,9 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
         }
     }
     if (anzahlBloecke >= 0) {
-        myFat.fat[FatIndex] = backToFat;
-        LOGF("previousFatToNewFat %d   <-  FatIndex %d", backToFat, FatIndex);
-    }
-    LOG("Ende");
+        myFat.fat[previousFatToNewFat] = backToFat;
+        }
 
-    //Update size in Inode Todo: size ändern (Size wird bisher nur aufaddiert, bei jedem Mal schreiben) + blockdevice root überschreiben
     int prevSize = myRoot.root[indexInRoot].size;
     myRoot.root[indexInRoot].size = prevSize + size;
 
