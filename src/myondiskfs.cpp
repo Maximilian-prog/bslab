@@ -136,7 +136,7 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
     LOGM();
     // TODO: [PART 2] Implement this!
     int ret = -EINVAL;
-    const int SIZE = BLOCK_SIZE;
+    const int SIZE = 0;
 
     MyFsFileInfo newFile;
     strcpy(newFile.name, path + 1); //Dateiname
@@ -553,7 +553,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
 
     //Update size in Inode
     int prevSize = myRoot.root[indexInRoot].size;
-    myRoot.root[indexInRoot].size = prevSize + anzahlBloecke * BLOCK_SIZE;
+    myRoot.root[indexInRoot].size = prevSize + size;
 
     ret = size;
 
