@@ -424,40 +424,62 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     int ret = -ENOENT;
     int bytesRead = 0;
 
-    int i = fileInfo->fh;
+    int indexInRoot = fileInfo->fh;
     //Suche Block
     int blockInFile = offset / BLOCK_SIZE;
     //Fat dursuchen
-    int blockIndex = myFat.fat[myRoot.root[i].firstBlockInFAT];
+    int blockIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
     for (int j = 0; j < blockInFile; j++) {
         blockIndex = myFat.fat[blockIndex];
     }
     char puffer[BLOCK_SIZE];
-    if (openfiles[i].blockNo == blockIndex) {
-        memcpy(puffer, openfiles[i].puffer, BLOCK_SIZE);
-    } else {
+    //If block is cached in openFiles struct buffer
+    if (openfiles[indexInRoot].blockNo == blockIndex) {
+        memcpy(puffer, openfiles[indexInRoot].puffer, BLOCK_SIZE);
+    }//If not, we have to get the block from the blockdevice
+    else {
         blockDevice->read(blockIndex, puffer);
-        openfiles[i].blockNo = blockIndex;
-        memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE);
+        openfiles[indexInRoot].blockNo = blockIndex;
+        memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
     }
     int offsetInBlock = offset % BLOCK_SIZE;
     LOGF("modulo rechnung: %d", offsetInBlock);
     memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     bytesRead += BLOCK_SIZE - offsetInBlock;
-
-
+    LOGF("Buffer %s", buf);
+    LOGF("buffer hex %A", buf);
     //FAT durchgehen bei jedem Block -> in den Puffer (buf) schreiben
-    int index = myRoot.root[i].firstBlockInFAT;
-    int count = 0;
+    int index = blockIndex;
+    int residialSize = size - bytesRead; //übrig gebliebene Size
     while (index != myFat.EOC) {
-        LOGF("index %d", index);
+        LOG("1");
         char puffer[BLOCK_SIZE];
         blockDevice->read(index, puffer);
-        openfiles[i].blockNo = index;
-        memcpy(openfiles[i].puffer, puffer, BLOCK_SIZE);
-        memcpy(buf + count * BLOCK_SIZE + BLOCK_SIZE - offset, puffer, BLOCK_SIZE);
+        LOG("3");
+        openfiles[indexInRoot].blockNo = index;
+        LOG("4");
+        memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
+        LOG("5");
+        if (residialSize < BLOCK_SIZE) {
+            memcpy(buf + bytesRead, puffer, residialSize);
+            LOG("6");
+        } else {
+            memcpy(buf + bytesRead, puffer, BLOCK_SIZE);
+            LOG("7");
+        }
         index = myFat.fat[index];
-        bytesRead += BLOCK_SIZE;
+        LOG("8");
+        if (residialSize < BLOCK_SIZE) {
+            bytesRead += residialSize;
+            residialSize -= bytesRead;
+        } else {
+            bytesRead += BLOCK_SIZE;
+            residialSize -= BLOCK_SIZE;
+        }
+        LOGF("Residialsize %d, bytesRead %d", residialSize, bytesRead);
+        if (bytesRead >= size) {
+            break;
+        }
     }
 
     ret = bytesRead;
