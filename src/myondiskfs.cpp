@@ -442,7 +442,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
         memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
     }
     int offsetInBlock = offset % BLOCK_SIZE;
-    memcpy(buf, puffer + BLOCK_SIZE - offsetInBlock, BLOCK_SIZE - offsetInBlock);
+    memcpy(buf, puffer + offsetInBlock, BLOCK_SIZE - offsetInBlock);
     bytesRead+=BLOCK_SIZE-offsetInBlock;
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock)); // Point of seperating Fat -> going from last block written to new index in fat
     for (int i = 0; i <= anzahlBloecke; i++) {
@@ -575,7 +575,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
         memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
     }
     int offsetInBlock = offset % BLOCK_SIZE;
-    memcpy(puffer + BLOCK_SIZE - offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
+    memcpy(puffer + offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     blockDevice->write(FatIndex, puffer);
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
     int previousFatToNewFat = FatIndex; // Point of seperating Fat -> going from last block written to new index in fat
