@@ -559,13 +559,13 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     int indexInRoot = fileInfo->fh;
 
     //Suche Block
+
     int blockInFile = offset / BLOCK_SIZE;
     //Fat dursuchen
     int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
     for (int j = 0; j < blockInFile; j++) {
         FatIndex = myFat.fat[FatIndex];
     }
-
     char puffer[BLOCK_SIZE];
     if (openfiles[indexInRoot].blockNo == FatIndex) {
         memcpy(puffer, openfiles[indexInRoot].puffer, BLOCK_SIZE);
@@ -654,8 +654,81 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    int ret = -ENOENT;
 
-    RETURN(0);
+    for (int i = 0; i < Root_Size_arr; i++) {
+        if (myRoot.root[i].name[0] != 0) {
+            if (strcmp(myRoot.root[i].name, path + 1) == 0)  //fileName == path
+            {
+                int size = myRoot.root[i].size;
+                myRoot.root[i].size=newSize;
+                writeBlockOfStructure("root", i, myRoot.root[i]);
+                if (size > newSize) {
+                    LOGF("Size alt %o > Size new %o",size,newSize);
+                    int delta = size - newSize;
+                    int anzahlBloecke = size / BLOCK_SIZE;
+                    int bloeckeUebrig = delta / BLOCK_SIZE;
+                    int FatIndex = myRoot.root[i].firstBlockInFAT;
+                    LOGF("1. FatIndex : %d", FatIndex);
+                    int EOCIndex = -1;
+                    LOGF("anzahlBLoecke %d , BloeckUebirg %d" , anzahlBloecke, bloeckeUebrig);
+                    for (int i = 0; i < anzahlBloecke; i++) {
+                        if (i < bloeckeUebrig) {
+                            EOCIndex = myFat.fat[FatIndex];
+                            FatIndex = myFat.fat[FatIndex];
+                            LOGF("EOCIndex %d, FatIndex %d", EOCIndex, FatIndex);
+                        } else {
+                            LOG("Schleifenvariable ist größer als die Anzahl der Bloecke");
+                            myDmap.dmap[FatIndex] = 0;
+                            writeBlockOfStructure("dmap", FatIndex);
+                            FatIndex = myFat.fat[FatIndex];
+                        }
+                    }
+                    if(EOCIndex>0) {
+                        myFat.fat[EOCIndex] = myFat.EOC;
+                        LOGF("finaler EOCIndex : %d" ,EOCIndex);
+                        writeBlockOfStructure("fat", EOCIndex);
+                    }
+                } else if (size < newSize) {
+                    LOGF("Size alt %o < Size new %o",size,newSize);
+                    int delta = newSize - size;
+                    int anzahlBloecke = delta / BLOCK_SIZE;
+                    LOGF("anzahlBloecke %d" , anzahlBloecke);
+                    //Fat dursuchen
+                    int FatIndex = myFat.fat[myRoot.root[i].firstBlockInFAT];
+                    LOGF("1. FatIndex : %d", FatIndex);
+                    for (int j = 0; j < size / BLOCK_SIZE; j++) {
+                        if (FatIndex != myFat.EOC) {
+                            FatIndex = myFat.fat[FatIndex];
+                            LOGF("FatIndex : %d", FatIndex);
+                        }
+                    }
+                    //DMAP Blöcke reservieren und in FAT verlinken
+                    for (int i = 0; i < anzahlBloecke; i++) {
+                        for (int j = offsetDMAP_array; i < Dmap_Size_arr; i++) {
+                            if (myDmap.dmap[j] == 0) {
+                                myFat.fat[FatIndex] = j;
+                                myDmap.dmap[FatIndex] = 1;
+                                writeBlockOfStructure("dmap", FatIndex);
+                                writeBlockOfStructure("fat", FatIndex);
+                                FatIndex = j;
+                                LOGF("letzter FatIndex : %d", FatIndex);
+                            }
+                        }
+                    }
+                    myFat.fat[FatIndex] = myFat.EOC;
+                    writeBlockOfStructure("fat", FatIndex);
+                } else { //Size = newSize
+                    LOGF("Size %o = newSize %o", size, newSize);
+                    RETURN(0);
+                }
+                ret = 0;
+                break;
+            }
+        }
+    }
+
+    RETURN(ret);
 }
 
 /// @brief Truncate a file.
@@ -672,8 +745,60 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize, struct fuse_file_i
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    int ret = fuseTruncate(path, newSize);
 
-    RETURN(0);
+    /*
+    int size = myRoot.root[indexInRoot].size;
+    writeBlockOfStructure("root", indexInRoot, myRoot.root[indexInRoot]);
+    if (size > newSize) {
+        int delta = size - newSize;
+        int anzahlBloecke = size / BLOCK_SIZE;
+        int bloeckeUebrig = delta / BLOCK_SIZE;
+        int FatIndex = myRoot.root[indexInRoot].firstBlockInFAT;
+        int EOCIndex = -1;
+        for (int i = 0; i < anzahlBloecke; i++) {
+            if (i < bloeckeUebrig) {
+                EOCIndex = myFat.fat[FatIndex];
+                FatIndex = myFat.fat[FatIndex];
+            } else {
+                myDmap.dmap[FatIndex] = 0;
+                writeBlockOfStructure("dmap", FatIndex);
+                FatIndex = myFat.fat[FatIndex];
+            }
+        }
+        myFat.fat[EOCIndex] = myFat.EOC;
+        writeBlockOfStructure("fat", EOCIndex);
+    } else if (size < newSize) {
+        int delta = newSize - size;
+        int anzahlBloecke = delta / BLOCK_SIZE;
+        //Fat dursuchen
+        int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
+        for (int j = 0; j < size / BLOCK_SIZE; j++) {
+            if (FatIndex != myFat.EOC) {
+                FatIndex = myFat.fat[FatIndex];
+            }
+        }
+        //DMAP Blöcke reservieren und in FAT verlinken
+        for (int i = 0; i < anzahlBloecke; i++) {
+            for (int j = offsetDMAP_array; i < Dmap_Size_arr; i++) {
+                if (myDmap.dmap[j] == 0) {
+                    myFat.fat[FatIndex] = j;
+                    myDmap.dmap[FatIndex] = 1;
+                    writeBlockOfStructure("dmap", FatIndex);
+                    writeBlockOfStructure("fat", FatIndex);
+                    FatIndex = j;
+                }
+            }
+        }
+        myFat.fat[FatIndex] = myFat.EOC;
+        writeBlockOfStructure("fat", FatIndex);
+    } else { //size = newSize
+        RETURN(0);
+    }
+    ret = 0;
+*/
+    RETURN(ret);
+
 }
 
 /// @brief Read a directory.
