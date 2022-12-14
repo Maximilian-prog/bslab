@@ -562,7 +562,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     //Suche Block
 
     int blockInFile = offset / BLOCK_SIZE;
-    //Fat dursuchen
+    //Fat durchsuchen
     int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
     for (int j = 0; j < blockInFile; j++) {
         FatIndex = myFat.fat[FatIndex];
