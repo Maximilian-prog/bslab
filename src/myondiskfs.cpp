@@ -591,7 +591,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
                 writeBlockOfStructure("fat", previousFatToNewFat);
                 //Daten schreiben
                 char puffer[BLOCK_SIZE];
-                memcpy(puffer, buf + i * BLOCK_SIZE, BLOCK_SIZE);
+                memcpy(puffer, buf + (i+1) * BLOCK_SIZE, BLOCK_SIZE);
                 blockDevice->write(j, puffer);
                 break;
             }
