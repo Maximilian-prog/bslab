@@ -452,7 +452,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
         }
         char puffer[BLOCK_SIZE];
         blockDevice->read(FatIndex, puffer);
-        if (size-bytesRead<BLOCK_SIZE) { //übirg zu lesenen Bytes sind < 1 Block
+        if (size-bytesRead<BLOCK_SIZE) { //übrig zu lesenden Bytes sind < 1 Block
             memcpy( buf+bytesRead, puffer, size-bytesRead);
             bytesRead+=size-bytesRead;
         }else{
