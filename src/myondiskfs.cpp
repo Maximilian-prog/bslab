@@ -586,19 +586,13 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
             if (myDmap.dmap[j] == 0) {
                 myDmap.dmap[j] = 1;
                 writeBlockOfStructure("dmap", j);
-                LOG("Nach dem Schreiben des Blocks (DMAP auf 1)");
-                LOGF("Index der FAT : %d", previousFatToNewFat);
                 myFat.fat[previousFatToNewFat] = j;
                 previousFatToNewFat = j;
-                LOGF("Inhalt fat : %d", j);
                 writeBlockOfStructure("fat", previousFatToNewFat);
-                LOG("Nach dem Schreiben des Blocks (FAT seperating)");
                 //Daten schreiben
-                LOG("Before Daten schreiben");
                 char puffer[BLOCK_SIZE];
                 memcpy(puffer, buf + i * BLOCK_SIZE, BLOCK_SIZE);
                 blockDevice->write(j, puffer);
-                LOG("Nach Daten schreiben");
                 break;
             }
         }
