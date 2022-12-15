@@ -426,7 +426,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     int bytesRead = 0;
 
     //Suche Block
-    int blockInFile = offset / BLOCK_SIZE;
+    int blockInFile = offset / BLOCK_SIZE; //0
     //Fat dursuchen
     int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
     for (int j = 0; j < blockInFile; j++) {
@@ -509,6 +509,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     for (int j = 0; j < blockInFile; j++) {
         FatIndex = myFat.fat[FatIndex];
     }
+    //Caching of one block
     char puffer[BLOCK_SIZE];
     if (openfiles[indexInRoot].blockNo == FatIndex) {
         memcpy(puffer, openfiles[indexInRoot].puffer, BLOCK_SIZE);
@@ -611,7 +612,6 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
                             EOCIndex = myFat.fat[FatIndex];
                             FatIndex = myFat.fat[FatIndex];
                         } else {
-                            LOG("Schleifenvariable ist größer als die Anzahl der Bloecke");
                             myDmap.dmap[FatIndex] = 0;
                             writeBlockOfStructure("dmap", FatIndex);
                             FatIndex = myFat.fat[FatIndex];
@@ -619,13 +619,11 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
                     }
                     if(EOCIndex>0) {
                         myFat.fat[EOCIndex] = myFat.EOC;
-                        LOGF("finaler EOCIndex : %d" ,EOCIndex);
                         writeBlockOfStructure("fat", EOCIndex);
                     }
                 } else if (size < newSize) {
                     int delta = newSize - size;
                     int anzahlBloecke = delta / BLOCK_SIZE;
-                    LOGF("anzahlBloecke %d" , anzahlBloecke);
                     //Fat dursuchen
                     int FatIndex = myFat.fat[myRoot.root[i].firstBlockInFAT];
                     for (int j = 0; j < size / BLOCK_SIZE; j++) {
@@ -642,14 +640,12 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
                                 writeBlockOfStructure("dmap", FatIndex);
                                 writeBlockOfStructure("fat", FatIndex);
                                 FatIndex = j;
-                                LOGF("letzter FatIndex : %d", FatIndex);
                             }
                         }
                     }
                     myFat.fat[FatIndex] = myFat.EOC;
                     writeBlockOfStructure("fat", FatIndex);
                 } else { //Size = newSize
-                    LOGF("Size %o = newSize %o", size, newSize);
                     RETURN(0);
                 }
                 ret = 0;

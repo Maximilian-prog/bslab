@@ -130,6 +130,7 @@ TEST_CASE("T-1.03", "[Part_1]") {
     REQUIRE(fd >= 0);
 
     // Read from the file
+   // read(fd, buf4, strlen(buf3)) == strlen(buf3);
     REQUIRE(read(fd, buf4, strlen(buf3)) == strlen(buf3));
     REQUIRE(memcmp(buf3, buf4, strlen(buf3)) == 0);
 
