@@ -384,7 +384,7 @@ TEST_CASE("T-1.08", "[Part_1]") {
     // remove file
     REQUIRE(unlink(FILENAME) >= 0);
 }
-
+*/
 TEST_CASE("T-1.09", "[Part_1]") {
     printf("Testcase 1.9: Write to multiple files\n");
 
