@@ -40,7 +40,7 @@
 #define Root_Size_arr NUM_DIR_ENTRIES
 #define Data_Size 0
 
-#define byteToBlock(byte) ((byte)/(BLOCK_SIZE))
+#define byteToBlock(byte) ((byte)/(BLOCK_SIZE)) //Wenn bei % 512 ein Rest existiert, dann muss noch ein Block addiert werden
 #define blockToByte(numberOfBlocks) ((BLOCK_SIZE) * (numberOfBlocks))
 #define startSUPERBLOCK 0
 #define startDMAP startSUPERBLOCK + 1
@@ -458,17 +458,20 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     LOGF("size : %d  -  anzahlBloecke : %d", size, anzahlBloecke);
     for(int i = 0; i < anzahlBloecke; i++) {
         FatIndex = myFat.fat[FatIndex];
-        if (FatIndex == myFat.EOC) {
-            break;
-        }
+        LOGF("FatIndex %d", FatIndex);
+
         char puffer[BLOCK_SIZE];
         blockDevice->read(FatIndex, puffer);
         if (size - bytesRead < BLOCK_SIZE) { //übrig zu lesenden Bytes sind < 1 Block
-            memcpy(buf + bytesRead, puffer, size - bytesRead);
+            LOGF("size %d, bytesRead %d", size, bytesRead);
+            memcpy(&buf + bytesRead, puffer, size - bytesRead);
             bytesRead += size - bytesRead;
+            LOGF("bytesRead new %d", bytesRead);
         } else {
-            memcpy(buf + bytesRead, puffer, BLOCK_SIZE);
+            LOGF("else -> bytesRead before %d", bytesRead);
+            memcpy(&buf + bytesRead, puffer, BLOCK_SIZE);
             bytesRead += BLOCK_SIZE;
+            LOGF("else -> bytesRead after %d", bytesRead);
         }
         if (FatIndex == myFat.EOC) {
             LOGF("EOC an stelle %d gefunden", i);
