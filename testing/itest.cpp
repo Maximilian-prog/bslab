@@ -21,7 +21,7 @@ using namespace std;
 #define FILENAME "file"
 #define SMALL_SIZE 1024
 #define LARGE_SIZE 20*1024*1024
-/*
+
 TEST_CASE("T-1.01", "[Part_1]") {
     printf("Testcase 1.1: Create & remove a single file\n");
 
@@ -81,11 +81,11 @@ TEST_CASE("T-1.02", "[Part_1]") {
     REQUIRE(fd >= 0);
 
     // Read from the file
-    read(fd, r, SMALL_SIZE);
-    //REQUIRE(read(fd, r, SMALL_SIZE) == SMALL_SIZE);
-    (memcmp(r, w, SMALL_SIZE) == 0);
-    //REQUIRE(memcmp(r, w, SMALL_SIZE) == 0);
-    // Close file
+//    read(fd, r, SMALL_SIZE);
+    REQUIRE(read(fd, r, SMALL_SIZE) == SMALL_SIZE);
+//  (memcmp(r, w, SMALL_SIZE) == 0);
+    REQUIRE(memcmp(r, w, SMALL_SIZE) == 0);
+//     Close file
     REQUIRE(close(fd) >= 0);
 
     // remove file
@@ -386,7 +386,7 @@ TEST_CASE("T-1.08", "[Part_1]") {
     // remove file
     REQUIRE(unlink(FILENAME) >= 0);
 }
-*/
+
 TEST_CASE("T-1.09", "[Part_1]") {
     printf("Testcase 1.9: Write to multiple files\n");
 
@@ -460,7 +460,7 @@ TEST_CASE("T-1.09", "[Part_1]") {
     delete[] w;
 }
 
-/*
+
 TEST_CASE("T-1.10", "[Part_1]") {
     printf("Testcase 1.10: Write a very large file\n");
     int fd;
@@ -469,9 +469,9 @@ TEST_CASE("T-1.10", "[Part_1]") {
     unlink(FILENAME);
 
     // set up read & write buffer
-    char* r= new char[LARGE_SIZE];
+    char *r = new char[LARGE_SIZE];
     memset(r, 0, LARGE_SIZE);
-    char* w= new char[LARGE_SIZE];
+    char *w = new char[LARGE_SIZE];
     memset(w, 0, LARGE_SIZE);
     gen_random(w, LARGE_SIZE);
 
@@ -499,4 +499,3 @@ TEST_CASE("T-1.10", "[Part_1]") {
     // remove file
     REQUIRE(unlink(FILENAME) >= 0);
 }
-*/
