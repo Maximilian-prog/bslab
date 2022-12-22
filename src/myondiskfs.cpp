@@ -527,10 +527,16 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     int offsetInBlock = offset % BLOCK_SIZE;
     memcpy(puffer + offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     blockDevice->write(FatIndex, puffer);
+
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
+    if (byteToBlock(size - (BLOCK_SIZE-offsetInBlock)) % BLOCK_SIZE > 0) {
+        anzahlBloecke += 1;
+    }
     LOGF("AnzahlBloecke: %d", anzahlBloecke);
+
     int previousFatToNewFat = FatIndex; // Point of seperating Fat -> going from last block written to new index in fat
     int backToFat = myFat.fat[FatIndex];
+
     for (int i = 0; i < anzahlBloecke; i++) {
         int j = getBlockOfDmap();
         myDmap.dmap[j] = 1;
