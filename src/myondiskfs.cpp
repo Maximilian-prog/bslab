@@ -161,7 +161,7 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
         }
     }
 
-   for (int i = offsetDMAP_array; i < Dmap_Size_arr; i++) {
+    for (int i = offsetDMAP_array; i < Dmap_Size_arr; i++) {
         if (myDmap.dmap[i] == 0) // freier Eintrag in DMAP gefunden
         {
             myDmap.dmap[i] = 1;
@@ -421,18 +421,16 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    //Variablen Initialisieren
     int ret = -ENOENT;
-
     int indexInRoot = fileInfo->fh;
     int bytesRead = 0;
+    int blockInFile;
 
-    //Suche Block
-    int blockInFile = offset / BLOCK_SIZE;
-    //Fat dursuchen
+
+    //Search Fat (walk to Position after offset)
     int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
-    for (int j = 0; j < blockInFile; j++) {
-        FatIndex = myFat.fat[FatIndex];
-    }
+    stepThroughOffset(offset, FatIndex, blockInFile);
     LOGF("FatIndex %d", FatIndex);
 
     char puffer[BLOCK_SIZE];
@@ -445,18 +443,20 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
     }
     int offsetInBlock = offset % BLOCK_SIZE;
     //Read first Block
-    if(size<BLOCK_SIZE-offsetInBlock) //erster block + offset kleiner als ein Block
+    if (size < BLOCK_SIZE - offsetInBlock) //erster block + offset kleiner als ein Block
     {
         memcpy(buf, puffer + offsetInBlock, size);
         bytesRead += size;
-    }else { // if size >= Block_Size - offset => restlicher Block lesen
+    } else { // if size >= Block_Size - offset => restlicher Block lesen
         memcpy(buf, puffer + offsetInBlock, BLOCK_SIZE - offsetInBlock);
         bytesRead += BLOCK_SIZE - offsetInBlock;
     }
     int anzahlBloecke = byteToBlock(size - bytesRead); //#Blöcke die wir noch lesen müssen (1. Block wurde bereits gelesen)
-    if(byteToBlock(size - bytesRead)%BLOCK_SIZE > 0) anzahlBloecke += 1;
+    if (byteToBlock(size - bytesRead) % BLOCK_SIZE > 0) {
+        anzahlBloecke += 1;
+    }
     LOGF("size : %d  -  anzahlBloecke : %d", size, anzahlBloecke);
-    for(int i = 0; i < anzahlBloecke; i++) {
+    for (int i = 0; i < anzahlBloecke; i++) {
         FatIndex = myFat.fat[FatIndex];
         LOGF("FatIndex %d", FatIndex);
 
@@ -506,18 +506,15 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     // TODO: [PART 2] Implement this!
 
     int ret = -ENOENT;
-
     int indexInRoot = fileInfo->fh;
+    int blockInFile;
 
-    //Suche Block
 
-    int blockInFile = offset / BLOCK_SIZE;
-    //Fat durchsuchen
+    //Search Fat (walk to Position after offset)
     int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
-    for (int j = 0; j < blockInFile; j++) {
-        FatIndex = myFat.fat[FatIndex];
-    }
+    stepThroughOffset(offset, FatIndex, blockInFile);
     LOGF("Fatindex %d", FatIndex);
+
     //Caching of one block
     char puffer[BLOCK_SIZE];
     if (openfiles[indexInRoot].blockNo == FatIndex) {
@@ -528,7 +525,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
         memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
     }
     int offsetInBlock = offset % BLOCK_SIZE;
-    memcpy(puffer + offsetInBlock, buf, BLOCK_SIZE-offsetInBlock);
+    memcpy(puffer + offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     blockDevice->write(FatIndex, puffer);
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
     LOGF("AnzahlBloecke: %d", anzahlBloecke);
@@ -536,21 +533,22 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     int backToFat = myFat.fat[FatIndex];
     for (int i = 0; i < anzahlBloecke; i++) {
         int j = getBlockOfDmap();
-                myDmap.dmap[j] = 1;
-                writeBlockOfStructure("dmap", j);
-                myFat.fat[previousFatToNewFat] = j;
-                previousFatToNewFat = j;
-                LOGF("Fatindex %d  ", previousFatToNewFat);
-                writeBlockOfStructure("fat", previousFatToNewFat);
-                //Daten schreiben
-                char puffer[BLOCK_SIZE];
-                memcpy(puffer, buf + (i+1) * BLOCK_SIZE, BLOCK_SIZE);
-                blockDevice->write(j, puffer);
+        myDmap.dmap[j] = 1;
+        writeBlockOfStructure("dmap", j);
+        myFat.fat[previousFatToNewFat] = j;
+        previousFatToNewFat = j;
+        LOGF("Fatindex %d  ", previousFatToNewFat);
+        writeBlockOfStructure("fat", previousFatToNewFat);
+        //Daten schreiben
+        char puffer[BLOCK_SIZE];
+        memcpy(puffer, buf + (i + 1) * BLOCK_SIZE, BLOCK_SIZE);
+        blockDevice->write(j, puffer);
     }
 
     if (anzahlBloecke >= 0) {
         myFat.fat[previousFatToNewFat] = backToFat;
-        LOGF("prevFat %d ; fat[previousFat] %d -> backtofat %d",previousFatToNewFat, myFat.fat[previousFatToNewFat], backToFat);
+        LOGF("prevFat %d ; fat[previousFat] %d -> backtofat %d", previousFatToNewFat, myFat.fat[previousFatToNewFat],
+             backToFat);
     }
 
     fuseTruncate(path, size);
@@ -609,8 +607,8 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
                 myRoot.root[i].size = newSize;
                 writeBlockOfStructure("root", i, myRoot.root[i]);
                 if (size > newSize) { //file wird kleiner
-                    int anzahlBloecke = size / BLOCK_SIZE;
-                    int bloeckeUebrig = newSize / BLOCK_SIZE; //Blöcke die wir brauchen
+                    int anzahlBloecke = byteToBlock(size);
+                    int bloeckeUebrig = byteToBlock(newSize); //Blöcke die wir brauchen
                     int FatIndex = myRoot.root[i].firstBlockInFAT;
                     int EOCIndex = -1;
                     for (int i = 0; i < anzahlBloecke; i++) {
@@ -623,7 +621,7 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
                             FatIndex = myFat.fat[FatIndex];
                         }
                     }
-                    if(EOCIndex>0) {
+                    if (EOCIndex > 0) {
                         myFat.fat[EOCIndex] = myFat.EOC;
                         writeBlockOfStructure("fat", EOCIndex);
                     }
@@ -893,9 +891,8 @@ void MyOnDiskFS::writeBlockOfStructure(char *structure, uint32_t indexInArray, s
 }
 
 int MyOnDiskFS::getBlockOfDmap() {
-    for(int i = offsetDMAP_array; i< Dmap_Size_arr;i++)
-    {
-        if(myDmap.dmap[i]==0) return i;
+    for (int i = offsetDMAP_array; i < Dmap_Size_arr; i++) {
+        if (myDmap.dmap[i] == 0) return i;
     }
 }
 
@@ -910,6 +907,13 @@ void MyOnDiskFS::writeBlockOfStructure(char *structure, uint32_t indexInArray) {
         uint32_t block = indexInArray / (BLOCK_SIZE / 4); //sizeof(uint32_t) => 4 bytes
         memcpy(puffer_block, myFat.fat + (block * (BLOCK_SIZE / 4)), BLOCK_SIZE);
         blockDevice->write(startFAT + block, puffer_block);
+    }
+}
+
+void MyOnDiskFS::stepThroughOffset(off_t offset, int &FatIndex, int &blockInFile) {
+    blockInFile = offset / BLOCK_SIZE;
+    for (int j = 0; j < blockInFile; j++) {
+        FatIndex = myFat.fat[FatIndex];
     }
 }
 
