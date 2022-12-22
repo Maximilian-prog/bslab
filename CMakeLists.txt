@@ -55,3 +55,4 @@ target_include_directories(unittests PUBLIC ${FUSE_INCLUDE_DIRS})
 target_link_libraries(integrationtests PRIVATE Catch ${FUSE_LDFLAGS})
 target_compile_options(integrationtests PUBLIC ${FUSE_CFLAGS})
 target_include_directories(integrationtests PUBLIC ${FUSE_INCLUDE_DIRS})
+
