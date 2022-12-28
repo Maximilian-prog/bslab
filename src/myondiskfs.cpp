@@ -558,7 +558,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
              backToFat);
     }
 
-    int newSize = anzahlBloecke >= 0 ? (countOffset + anzahlBloecke) * BLOCK_SIZE : countOffset * BLOCK_SIZE;
+    int newSize = anzahlBloecke >= 0 ? (countOffset + anzahlBloecke+1) * BLOCK_SIZE : countOffset * BLOCK_SIZE;
     LOGF("newSize %d", newSize);
     //fuseTruncate(path, size);
        int oldSize = myRoot.root[indexInRoot].size;
