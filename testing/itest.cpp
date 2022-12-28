@@ -81,11 +81,11 @@ TEST_CASE("T-1.02", "[Part_1]") {
     REQUIRE(fd >= 0);
 
     // Read from the file
-    //read(fd, r, SMALL_SIZE);
+//    read(fd, r, SMALL_SIZE);
     REQUIRE(read(fd, r, SMALL_SIZE) == SMALL_SIZE);
-    //(memcmp(r, w, SMALL_SIZE) == 0);
+//  (memcmp(r, w, SMALL_SIZE) == 0);
     REQUIRE(memcmp(r, w, SMALL_SIZE) == 0);
-    // Close file
+//     Close file
     REQUIRE(close(fd) >= 0);
 
     // remove file
@@ -390,18 +390,18 @@ TEST_CASE("T-1.08", "[Part_1]") {
 TEST_CASE("T-1.09", "[Part_1]") {
     printf("Testcase 1.9: Write to multiple files\n");
 
-    int fileSize= SMALL_SIZE;
-    int writeSize= 16;
+    int fileSize = SMALL_SIZE;
+    int writeSize = 16;
     const char *filename = "file";
-    int noFiles= 64;
+    int noFiles = 64;
 
-    off_t bufferSize= (fileSize/writeSize)*writeSize;
+    off_t bufferSize = (fileSize / writeSize) * writeSize;
 
-    char* w= new char[bufferSize];
+    char *w = new char[bufferSize];
     memset(w, 0, bufferSize);
     gen_random(w, (int) bufferSize);
 
-    char* r= new char[bufferSize];
+    char *r = new char[bufferSize];
     memset(r, 0, bufferSize);
 
     int ret;
@@ -410,56 +410,57 @@ TEST_CASE("T-1.09", "[Part_1]") {
     int fd[noFiles];
 
     // open all files
-    for(int f= 0; f < noFiles; f++) {
-        char nFilename[strlen(filename)+10];
+    for (int f = 0; f < noFiles; f++) {
+        char nFilename[strlen(filename) + 10];
         sprintf(nFilename, "%s_%d", filename, f);
         unlink(nFilename);
-        fd[f]= open(nFilename, O_EXCL | O_RDWR | O_CREAT, 0666);
+        fd[f] = open(nFilename, O_EXCL | O_RDWR | O_CREAT, 0666);
         REQUIRE(fd[f] >= 0);
     }
 
     // write incrementally to all files
-    for(off_t offset= 0; offset < bufferSize; offset+= writeSize) {
-        off_t toWrite= offset + writeSize < bufferSize ? writeSize : bufferSize - offset;
+    for (off_t offset = 0; offset < bufferSize; offset += writeSize) {
+        off_t toWrite = offset + writeSize < bufferSize ? writeSize : bufferSize - offset;
 
-        for(int f= 0; f < noFiles; f++) {
-            b= lseek(fd[f], offset, SEEK_SET);
+        for (int f = 0; f < noFiles; f++) {
+            b = lseek(fd[f], offset, SEEK_SET);
             REQUIRE(b == offset);
 
-            b= write(fd[f], w+offset, toWrite);
+            b = write(fd[f], w + offset, toWrite);
             REQUIRE(b == toWrite);
         }
     }
 
     // close all files
-    for(int f= 0; f < noFiles; f++) {
-        ret= close(fd[f]);
+    for (int f = 0; f < noFiles; f++) {
+        ret = close(fd[f]);
         REQUIRE(ret >= 0);
     }
 
     // check all files
-    for(int f= 0; f < noFiles; f++) {
-        char nFilename[strlen(filename)+10];
+    for (int f = 0; f < noFiles; f++) {
+        char nFilename[strlen(filename) + 10];
         sprintf(nFilename, "%s_%d", filename, f);
 
-        int fd= open(nFilename, O_RDONLY);
+        int fd = open(nFilename, O_RDONLY);
         REQUIRE(fd >= 0);
 
-        b= read(fd, r, bufferSize);
+        b = read(fd, r, bufferSize);
         REQUIRE(b == bufferSize);
         REQUIRE(memcmp(r, w, bufferSize) == 0);
 
-        ret= close(fd);
+        ret = close(fd);
         REQUIRE(ret >= 0);
 
-        ret= unlink(nFilename);
+        ret = unlink(nFilename);
         REQUIRE(ret >= 0);
     }
 
-    delete [] r;
-    delete [] w;
+    delete[] r;
+    delete[] w;
 }
-/*
+
+
 TEST_CASE("T-1.10", "[Part_1]") {
     printf("Testcase 1.10: Write a very large file\n");
     int fd;
@@ -468,9 +469,9 @@ TEST_CASE("T-1.10", "[Part_1]") {
     unlink(FILENAME);
 
     // set up read & write buffer
-    char* r= new char[LARGE_SIZE];
+    char *r = new char[LARGE_SIZE];
     memset(r, 0, LARGE_SIZE);
-    char* w= new char[LARGE_SIZE];
+    char *w = new char[LARGE_SIZE];
     memset(w, 0, LARGE_SIZE);
     gen_random(w, LARGE_SIZE);
 
@@ -498,4 +499,3 @@ TEST_CASE("T-1.10", "[Part_1]") {
     // remove file
     REQUIRE(unlink(FILENAME) >= 0);
 }
-*/
