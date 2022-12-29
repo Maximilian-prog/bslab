@@ -528,6 +528,8 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     int offsetInBlock = offset % BLOCK_SIZE;
     memcpy(puffer + offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     blockDevice->write(FatIndex, puffer);
+    //Aktualisieren von Cache
+    memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
 
     int anzahlBloecke = byteToBlock(size - (BLOCK_SIZE - offsetInBlock));
     if (byteToBlock(size - (BLOCK_SIZE-offsetInBlock)) % BLOCK_SIZE > 0) {

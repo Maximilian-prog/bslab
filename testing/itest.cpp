@@ -22,7 +22,7 @@ using namespace std;
 #define SMALL_SIZE 1024
 #define LARGE_SIZE 20*1024*1024
 
-/*
+
 TEST_CASE("T-1.01", "[Part_1]") {
     printf("Testcase 1.1: Create & remove a single file\n");
 
@@ -387,7 +387,7 @@ TEST_CASE("T-1.08", "[Part_1]") {
     // remove file
     REQUIRE(unlink(FILENAME) >= 0);
 }
-*/
+
 TEST_CASE("T-1.09", "[Part_1]") {
     printf("Testcase 1.9: Write to multiple files\n");
 
@@ -463,7 +463,7 @@ TEST_CASE("T-1.09", "[Part_1]") {
 
 
 
-/*
+
 TEST_CASE("T-1.10", "[Part_1]") {
     printf("Testcase 1.10: Write a very large file\n");
     int fd;
@@ -501,4 +501,4 @@ TEST_CASE("T-1.10", "[Part_1]") {
 
     // remove file
     REQUIRE(unlink(FILENAME) >= 0);
-}*/
+}
