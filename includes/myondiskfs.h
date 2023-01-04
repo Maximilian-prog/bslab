@@ -45,8 +45,16 @@ public:
 
     virtual void writeBlockOfStructure(char *structure, uint32_t indexInArray, struct MyFsFileInfo newFile);
     virtual void writeBlockOfStructure(char *structure, uint32_t indexInArray);
-    virtual int getBlockOfDmap();
+    virtual int getFirstFreeBlockOfDmap();
     virtual int stepThroughOffset(off_t offset, int &FatIndex, int &blockInFile);
+
+    int byteToBlock (int size) {
+        int anzahlBloecke = size/BLOCK_SIZE;
+        if(size % BLOCK_SIZE > 0) {
+            anzahlBloecke++;
+        }
+        return anzahlBloecke;
+    }
 };
 
 #endif //MYFS_MYONDISKFS_H
