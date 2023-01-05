@@ -1,5 +1,4 @@
 # Labor Betriebssysteme
-
 Dies ist das Template für die Aufgaben zum Labor Betriebsysteme. Details zur Aufgabenstellung finden Sie im ILIAS-Kurs 
 zum Labor.
 
