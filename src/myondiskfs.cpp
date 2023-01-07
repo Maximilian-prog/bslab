@@ -523,7 +523,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     int FatIndex = myRoot.root[indexInRoot].firstBlockInFAT;
     int countOffset = stepThroughOffset(offset, FatIndex, blockInFile); // Stop before reaching eoc, 1 block before eoc
     LOGF("Fatindex %d", FatIndex);
-
+    int byteWritten =0;
     //Caching of one block
 //    TODO: Dieser gecachte Block wird nicht aktualisiert, am Anfang stehen da immer Nullen, drin, eigentlich müssten aber nach dem Schreiben
 //            dieser gecachte Block auch nochmals aktualisiert werden.
@@ -554,6 +554,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
 
     memcpy(puffer + offsetInBlock, buf, BLOCK_SIZE - offsetInBlock);
     blockDevice->write(FatIndex, puffer);
+    byteWritten+=BLOCK_SIZE-offsetInBlock;
 //    Aktualisieren des Caches nach dem Der Puffer beschrieben wurde
     memcpy(openfiles[indexInRoot].puffer, puffer, BLOCK_SIZE);
 
@@ -576,8 +577,27 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
         char writeBuffer[BLOCK_SIZE];
         memcpy(writeBuffer, buf + (i + 1) * BLOCK_SIZE, BLOCK_SIZE);
         blockDevice->write(nextFat, writeBuffer);
+        byteWritten+=BLOCK_SIZE;
     }
 
+    //letzer Block schreiben (Falls die size nicht teilbar durch 512 ist)
+    if(size > byteWritten)
+    {
+        int nextFat = getFirstFreeBlockOfDmap();
+        myDmap.dmap[nextFat] = 1;
+        writeBlockOfStructure("dmap", nextFat);
+        myFat.fat[previousFat] = nextFat;
+        previousFat = nextFat;
+        LOGF("Loop Fatindex %d  ", previousFat);
+        writeBlockOfStructure("fat", previousFat);
+        //Daten schreiben
+        char writeBuffer[BLOCK_SIZE];
+        memcpy(writeBuffer, buf + (anzahlBloecke + 1) * BLOCK_SIZE, size-byteWritten);
+        blockDevice->write(nextFat, writeBuffer);
+        byteWritten+=size-byteWritten;
+    }
+
+    //Back to EOC
     if (anzahlBloecke >= 0) {
         myFat.fat[previousFat] = eocIndex;
         LOGF("prevFat %d ; fat[previousFat] %d -> backtofat %d", previousFat, myFat.fat[previousFat],
@@ -585,7 +605,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     }
 //    @anzahlBloecke kann nie kleiner als 0 werden, daher ist der Ternäroperator überflüssig!
 //    int newSize = anzahlBloecke >= 0 ? (countOffset + anzahlBloecke + 1) * BLOCK_SIZE : countOffset * BLOCK_SIZE;
-    int newSize = size+ offset;
+    int newSize = size + offset;
     LOGF("newSize %d", newSize);
     //fuseTruncate(path, size);
     int oldSize = myRoot.root[indexInRoot].size;

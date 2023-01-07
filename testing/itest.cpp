@@ -19,7 +19,7 @@ using namespace std;
 #include "tools.hpp"
 
 #define FILENAME "file"
-#define SMALL_SIZE 1024
+#define SMALL_SIZE 1500
 #define LARGE_SIZE 20*1024*1024
 
 /*
@@ -72,8 +72,8 @@ TEST_CASE("T-1.02", "[Part_1]") {
     REQUIRE(fd >= 0);
 
     // Write to the file
-    (write(fd, w, SMALL_SIZE) == SMALL_SIZE);
-    //REQUIRE(write(fd, w, SMALL_SIZE) == SMALL_SIZE);
+    //(write(fd, w, SMALL_SIZE) == SMALL_SIZE);
+    REQUIRE(write(fd, w, SMALL_SIZE) == SMALL_SIZE);
 
     // Close file
     REQUIRE(close(fd) >= 0);
