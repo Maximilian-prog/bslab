@@ -46,6 +46,7 @@ public:
     virtual void writeBlockOfStructure(char *structure, uint32_t indexInArray, struct MyFsFileInfo newFile);
     virtual void writeBlockOfStructure(char *structure, uint32_t indexInArray);
     virtual int getFirstFreeBlockOfDmap();
+    virtual int stepThroughOffset(off_t offset, int &FatIndex, int &blockInFile, int &lastFatIndex);
     virtual int stepThroughOffset(off_t offset, int &FatIndex, int &blockInFile);
 
     int byteToBlock (int size) {
