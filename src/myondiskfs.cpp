@@ -188,14 +188,14 @@ int MyOnDiskFS::fuseMknod(const char *path, mode_t mode, dev_t dev) {
                     //Blockdevice update mit EOC in FAT
                     //writeBlockOfStructure("fat", j);
 */
-                    ret = 0;
-                    RETURN(ret);
-                }
-            //}
-        //}
-    //}
+    ret = 0;
+    RETURN(ret);
+}
+//}
+//}
+//}
 
-    //RETURN(ret);
+//RETURN(ret);
 //}
 
 /// @brief Delete a file.
@@ -476,10 +476,10 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
             break;
         }
         blockDevice->read(FatIndex, puffer);
-            LOGF("else -> bytesRead before %d", bytesRead);
-            memcpy(buf + bytesRead, puffer, BLOCK_SIZE);
-            bytesRead += BLOCK_SIZE;
-            LOGF("else -> bytesRead after %d", bytesRead);
+        LOGF("else -> bytesRead before %d", bytesRead);
+        memcpy(buf + bytesRead, puffer, BLOCK_SIZE);
+        bytesRead += BLOCK_SIZE;
+        LOGF("else -> bytesRead after %d", bytesRead);
     }
 
     //letzer block lesen
@@ -517,7 +517,74 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     LOGM();
 
     // TODO: [PART 2] Implement this!
+    int ret = -ENOENT;
+    int indexInRoot = fileInfo->fh;
+    int blockInFile;
 
+    //allocate blocks needed
+    fuseTruncate(path, offset+size);
+
+    //Search Fat (walk to Position after offset)
+//    int FatIndex = myFat.fat[myRoot.root[indexInRoot].firstBlockInFAT];
+    int FatIndex = myRoot.root[indexInRoot].firstBlockInFAT;
+    int lastFatIndexBeforeOffset=-1;
+    stepThroughOffset(offset, FatIndex, blockInFile, lastFatIndexBeforeOffset); // Stop before reaching eoc, 1 block before eoc
+    LOGF("Fatindex (nach stepthroughoffset) %d   lastFatIndex=%d", FatIndex, lastFatIndexBeforeOffset);
+
+    if(FatIndex==myFat.EOC) FatIndex=lastFatIndexBeforeOffset;
+
+    int bytesWritten = 0;
+    //Caching of one block
+    char cache[BLOCK_SIZE];
+    if (openfiles[indexInRoot].blockNo == FatIndex) {
+        LOG("Caching");
+        memcpy(cache, openfiles[indexInRoot].puffer, BLOCK_SIZE);
+    } else {
+        LOG("Caching (1. time)");
+        blockDevice->read(FatIndex, cache);
+        openfiles[indexInRoot].blockNo = FatIndex;
+        memcpy(openfiles[indexInRoot].puffer, cache, BLOCK_SIZE);
+        memcpy(cache, openfiles[indexInRoot].puffer, BLOCK_SIZE);
+    }
+
+    int offsetInFirstBlock = offset%BLOCK_SIZE;
+    //write first Block
+    memcpy(cache, buf+offsetInFirstBlock, BLOCK_SIZE-offsetInFirstBlock);
+    //Update cache
+    memcpy(openfiles[indexInRoot].puffer, cache, BLOCK_SIZE);
+    blockDevice->write(FatIndex, cache);
+    if(size - offset < BLOCK_SIZE)
+    {
+        LOG("Only needed 1 block to write");
+        RETURN (size);
+    }
+    bytesWritten+=BLOCK_SIZE-offsetInFirstBlock;
+
+    FatIndex=myFat.fat[FatIndex];
+    LOGF("After 1. block written: byteswritten&%d Fatindex=%d", bytesWritten, FatIndex);
+    //write other blocks
+    while(FatIndex!=myFat.EOC)
+    {
+        char puffer[BLOCK_SIZE];
+        memcpy(puffer, buf + bytesWritten, BLOCK_SIZE);
+        blockDevice->write(FatIndex, puffer);
+
+        if(size-bytesWritten < BLOCK_SIZE) //letzer Block schreiben (kleiner als ein ganzer Block)
+        {
+            bytesWritten += size-bytesWritten;
+        }else {
+            bytesWritten += BLOCK_SIZE;
+        }
+
+        LOGF("written %d to FATIndex %d", bytesWritten, FatIndex);
+        FatIndex = myFat.fat[FatIndex];
+        LOGF("next FatIndex = %d", FatIndex);
+    }
+
+    RETURN(bytesWritten);
+
+
+    /*
     int ret = -ENOENT;
     int indexInRoot = fileInfo->fh;
     int blockInFile;
@@ -626,14 +693,14 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
         bytesWritten += size-bytesWritten;
         LOGF("Schreiben des letzen Blockes:  oldFatIndex = %d  new FatIndex = %d  bytesWritten = %d", oldFatIndex, FatIndex, bytesWritten);
     }
-*/
+
     //zurück zur in die Kette springen
     myFat.fat[FatIndex]=FatBack;
     writeBlockOfStructure("fat", FatIndex);
     LOGF("Zurück in Kette : Fat[%d]=%d" , FatIndex, FatBack);
 
 //  If the Block that is reached after going through the Offset is the EOC then new Blocks will be allocated, the eoc block shall not be written on
-/*    int newBlock;
+    int newBlock;
     if (myFat.fat[myFat.fat[FatIndex]] == myFat.EOC && myRoot.root[indexInRoot].size >= BLOCK_SIZE && offset >= 512) {
         newBlock = getFirstFreeBlockOfDmap();
         myDmap.dmap[newBlock] = 1;
@@ -688,7 +755,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     } else {
         fuseTruncate(path, newSize);
     }
-  */
+
     int newSize = newSize=offset+size;
     myRoot.root[indexInRoot].size=newSize;
     myRoot.root[indexInRoot].atime = time(NULL);
@@ -697,6 +764,7 @@ MyOnDiskFS::fuseWrite(const char *path, const char *buf, size_t size, off_t offs
     ret = bytesWritten;
 
     RETURN(bytesWritten);
+    */
 }
 
 
@@ -742,6 +810,19 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
                 int oldSize = myRoot.root[i].size;
                 if(newSize > oldSize)
                 {
+                    bool firstBlockEOC=false;
+                    if(oldSize ==0 || myRoot.root[i].firstBlockInFAT==myFat.EOC) {
+                        firstBlockEOC=true;
+                        LOG("first block needed (size =0)");
+                        int freeBlock = getFirstFreeBlockOfDmap();
+                        myDmap.dmap[freeBlock] = 1;
+                        writeBlockOfStructure("dmap", freeBlock);
+                        myRoot.root[i].firstBlockInFAT = freeBlock;
+                        myFat.fat[freeBlock] = myFat.EOC;
+                        writeBlockOfStructure("fat", freeBlock);
+                        writeBlockOfStructure("root", i, myRoot.root[i]);
+                    }
+
                     //search last FatIndex
                     int FatIndex = myRoot.root[i].firstBlockInFAT;
                     while(myFat.fat[FatIndex]!=myFat.EOC)
@@ -749,20 +830,23 @@ int MyOnDiskFS::fuseTruncate(const char *path, off_t newSize) {
                         FatIndex=myFat.fat[FatIndex];
                     }
                     //allocate new Blocks
-                    int anzahlBloecke = newSize/BLOCK_SIZE;
-                    if(newSize % BLOCK_SIZE != 0) anzahlBloecke+=1; //Rest => 1 weiterer Block nötig
+                    int anzahlBloecke = firstBlockEOC ? (newSize-BLOCK_SIZE)/BLOCK_SIZE : newSize/BLOCK_SIZE; //Garantiert 1. Block schon allokiert
+                    if(newSize-BLOCK_SIZE % BLOCK_SIZE != 0) anzahlBloecke+=1; //Rest => 1 weiterer Block nötig
+                    if(newSize < BLOCK_SIZE) anzahlBloecke=-1; //Block wurde bereits allokiert
                     for(int  j=0;j<anzahlBloecke;j++)
                     {
+                        int oldFatIndex = FatIndex;
                         int freeBlock = getFirstFreeBlockOfDmap();
                         myDmap.dmap[freeBlock]=1;
                         writeBlockOfStructure("dmap", freeBlock);
-                        int oldFatIndex = FatIndex;
                         FatIndex=freeBlock;
                         myFat.fat[oldFatIndex]=FatIndex;
                         writeBlockOfStructure("fat",oldFatIndex);
+                        LOGF("schleife: i=%d  oldFat=%d  Fat=%d", j, oldFatIndex, FatIndex);
                     }
                     myFat.fat[FatIndex]=myFat.EOC;
                     writeBlockOfStructure("fat", FatIndex);
+                    LOGF("Nach schleife: Fat[%d]=EOC", FatIndex);
                     myRoot.root[i].size=newSize;
                     writeBlockOfStructure("root", i, myRoot.root[i]);
                     ret=0;
@@ -1115,14 +1199,26 @@ void MyOnDiskFS::writeBlockOfStructure(char *structure, uint32_t indexInArray) {
  * @param blockInFile
  * @return Offset umgerechnet in Blöcke
  */
+int MyOnDiskFS::stepThroughOffset(off_t offset, int &FatIndex, int &blockInFile) {
+    blockInFile = offset / BLOCK_SIZE;
+    int j;
+    for (j = 0; j < blockInFile; j++) {
+        if(FatIndex == myFat.EOC) {
+            break;
+        }
+        FatIndex = myFat.fat[FatIndex];
+    }
+    return j;
+}
+
 int MyOnDiskFS::stepThroughOffset(off_t offset, int &FatIndex, int &blockInFile, int &lastFatIndex) {
     blockInFile = offset / BLOCK_SIZE;
     int j;
     for (j = 0; j < blockInFile; j++) {
-        lastFatIndex=FatIndex;
         if(FatIndex == myFat.EOC) {
             break;
         }
+        lastFatIndex=FatIndex;
         FatIndex = myFat.fat[FatIndex];
     }
     return j;
