@@ -499,7 +499,7 @@ int MyOnDiskFS::fuseRead(const char *path, char *buf, size_t size, off_t offset,
 
     ret = bytesRead;
 
-    RETURN(size);
+    RETURN(bytesRead);
 }
 
 /// @brief Write to a file.
