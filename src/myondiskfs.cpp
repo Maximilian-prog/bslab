@@ -1066,3 +1066,4 @@ void MyOnDiskFS::writeBlockOfStructure(char *structure, uint32_t indexInArray) {
 void MyOnDiskFS::SetInstance() {
     MyFS::_instance = new MyOnDiskFS();
 }
+
